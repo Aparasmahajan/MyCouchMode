@@ -1,0 +1,43 @@
+/* ---------- controller cursor + hint bar ---------- */
+#mcm-cursor {
+  position: fixed !important; left: 0 !important; top: 0 !important; z-index: 2147483647 !important;
+  width: 26px !important; height: 26px !important; margin: -13px 0 0 -13px !important;
+  border-radius: 50% !important; border: 3px solid #fff !important;
+  background: rgba(59, 91, 255, .35) !important; box-shadow: 0 0 0 2px rgba(0,0,0,.45), 0 4px 14px rgba(0,0,0,.4) !important;
+  pointer-events: none !important; opacity: 0; transition: opacity .25s, scale .12s !important;
+}
+#mcm-cursor.show { opacity: 1; }
+#mcm-cursor.press { scale: .75; background: rgba(255, 255, 255, .7) !important; }
+#mcm-hud {
+  position: fixed !important; left: 50% !important; bottom: 32px !important; z-index: 2147483647 !important;
+  transform: translate(-50%, 12px); max-width: min(90vw, 760px);
+  padding: 12px 20px !important; border-radius: 14px !important;
+  background: rgba(16, 22, 46, .96) !important; color: #f1f3fc !important; border: 1px solid rgba(214,222,255,.18) !important;
+  font: 600 15px/1.4 system-ui, sans-serif !important; text-align: center !important;
+  pointer-events: none !important; opacity: 0; transition: opacity .2s, transform .2s !important;
+}
+#mcm-hud.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* ---------- cosmetic ad hiding (network blocking does most of the work) ---------- */
+html:not([data-mcm-ads="allow"]) ins.adsbygoogle,
+html:not([data-mcm-ads="allow"]) .adsbygoogle,
+html:not([data-mcm-ads="allow"]) [id^="google_ads_iframe"],
+html:not([data-mcm-ads="allow"]) [id^="div-gpt-ad"],
+html:not([data-mcm-ads="allow"]) [data-google-query-id],
+html:not([data-mcm-ads="allow"]) [data-ad-slot],
+html:not([data-mcm-ads="allow"]) [data-ad-unit],
+html:not([data-mcm-ads="allow"]) iframe[src*="doubleclick.net"],
+html:not([data-mcm-ads="allow"]) iframe[src*="googlesyndication.com"],
+html:not([data-mcm-ads="allow"]) iframe[src*="amazon-adsystem.com"],
+html:not([data-mcm-ads="allow"]) [id^="taboola-"],
+html:not([data-mcm-ads="allow"]) .trc_rbox_container,
+html:not([data-mcm-ads="allow"]) .OUTBRAIN,
+html:not([data-mcm-ads="allow"]) .ob-widget,
+html:not([data-mcm-ads="allow"]) [aria-label="Advertisement"],
+html:not([data-mcm-ads="allow"]) [aria-label="advertisement"],
+html:not([data-mcm-ads="allow"]) .ad-slot,
+html:not([data-mcm-ads="allow"]) .ad-banner,
+html:not([data-mcm-ads="allow"]) .advertisement,
+html:not([data-mcm-ads="allow"]) .sponsored-ad {
+  display: none !important;
+}

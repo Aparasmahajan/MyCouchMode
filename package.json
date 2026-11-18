@@ -1,0 +1,29 @@
+{
+  "name": "mcm",
+  "displayName": "MCM · My Couch Mode",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A console-style TV interface for the browser, driven by a game controller or your phone.",
+  "author": "Paras Mahajan",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@preact/signals": "^2.11.4",
+    "peerjs": "^1.5.5",
+    "preact": "^10.29.8",
+    "uqr": "^0.1.3"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.29.13",
+    "@preact/preset-vite": "^2.10.6",
+    "@types/node": "^26.6.6",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.8",
+    "vite-plugin-pwa": "^2.0.0"
+  }
+}
