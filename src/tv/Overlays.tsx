@@ -1,5 +1,5 @@
 import { Fragment } from 'preact';
-import { useEffect } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { renderSVG } from 'uqr';
 import { F, popLayer, pushLayer, resetLayers } from '../lib/nav';
 import { AppIcon, Icon } from '../lib/logos';
@@ -7,8 +7,9 @@ import { appById } from '../lib/apps';
 import { pad, textMode } from '../lib/input';
 import { AVATAR_COLORS, profiles, sfxOn, tvCode } from '../lib/store';
 import { ext } from '../lib/ext';
+import { canInstall, installed, promptInstall } from '../lib/install';
 import {
-  back, chooseProfile, frameApp, goHome, goRest, has, nowPlaying, pinEntry, pinError, pinFor,
+  back, chooseProfile, frameApp, goHome, goRest, has, openTab, openYouTube, nowPlaying, pinEntry, pinError, pinFor,
   setSleep, showToast, sleepAtEnd, sleepMins, typeChar,
 } from './state';
 import { Clock, glyphs } from './Chrome';
@@ -106,10 +107,11 @@ export function ControlCenter() {
   const phones = link?.phones.value || 0;
   const items: [string, string, string, () => void][] = [
     ['home', 'Home', 'cc:home', goHome],
-    ['search', 'Search', 'cc:search', () => { popLayer(); pushLayer('search'); }],
+    ['search', 'Search YouTube', 'cc:search', () => { popLayer(); openYouTube('#/search'); }],
     ['profile', 'Switch profile', 'cc:profile', () => resetLayers(['home', 'welcome'])],
     ['phone', 'Pair a phone', 'cc:pair', () => { popLayer(); pushLayer('pair'); }],
     ['full', document.fullscreenElement ? 'Exit full screen' : 'Full screen', 'cc:full', toggleFullscreen],
+    ...(installed.value ? [] : [['install', 'Install MCM app (videos from the phone play with sound)', 'cc:install', installApp] as [string, string, string, () => void]]),
     ['timer', `Sleep timer: ${sleepAtEnd.value ? 'End of video' : sleepMins.value ? sleepMins.value + ' min' : 'Off'}`, 'cc:sleep', cycleSleep],
     ['sfx', `UI sounds: ${sfxOn.value ? 'On' : 'Off'}`, 'cc:sfx', () => (sfxOn.value = !sfxOn.value)],
     ['power', 'Rest mode', 'cc:rest', goRest],
@@ -160,6 +162,12 @@ function toggleFullscreen() {
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
   else document.documentElement.requestFullscreen().catch(() => showToast('Full screen needs a key press or click on the TV itself.'));
 }
+async function installApp() {
+  const r = canInstall.value ? await promptInstall() : 'unavailable';
+  if (r === 'accepted') return showToast('MCM is installed. Open it from your apps for full screen, and videos from the phone play with sound.', undefined, 5000);
+  if (r === 'unavailable') showToast('Use the install icon at the right end of the address bar, or the browser menu → Install MCM (Brave/Chrome: ⋮ → Cast, save and share → Install).', undefined, 6000);
+}
+
 function cycleSleep() {
   const steps: (number | 'end')[] = [0, 'end', 30, 60, 90];
   const cur = sleepAtEnd.value ? 'end' : sleepMins.value;
@@ -175,7 +183,7 @@ export function Frame() {
       <iframe src={app.url} title={app.name} allow="autoplay; fullscreen; encrypted-media; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" />
       <div class="frame-bar">
         <span class="ti" style={{ '--c': app.color } as any}><AppIcon app={app} /></span>
-        <span>{app.name} · use the mouse inside the page, or your phone remote. Back returns to MCM.</span>
+        <span>{app.name} · use a mouse here. Install the MCM Companion extension to use your phone or controller as the mouse. Back returns to MCM.</span>
         <span class="spacer" />
         <F id="frame:back" class="pill" isDefault onSelect={back}><Icon name="back" /> Back</F>
       </div>
@@ -194,3 +202,49 @@ export function Rest() {
   );
 }
 
+
+/* ---------- YouTube without the Companion extension ---------- */
+export function YouTubeSetup() {
+  const [steps, setSteps] = useState(false);
+  const yt = appById('youtube');
+  const zip = '/mcm-companion.zip';
+  const download = () => {
+    const a = document.createElement('a');
+    a.href = zip;
+    a.download = 'mcm-companion.zip';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    showToast('Downloading mcm-companion.zip. Unzip it, then follow the steps.');
+  };
+  return (
+    <section class="layer ytsetup" data-layer="ytsetup">
+      <div class="ys-card">
+        {yt && <span class="ti ys-logo" style={{ '--c': yt.color } as any}><AppIcon app={yt} /></span>}
+        <h2 class="layer-title">YouTube with your own account</h2>
+        <p class="layer-sub">
+          MCM can open YouTube’s real TV app here: everyone signs in with their own Google account using a code on their phone,
+          switches accounts, and gets their own recommendations, subscriptions and Premium. YouTube only gives that app to TVs,
+          so it needs the free <b>MCM Companion</b> extension in this browser. It’s a one-time, one-minute install.
+        </p>
+        <div class="ys-actions">
+          <F id="ys:install" class="pill primary" isDefault onSelect={() => setSteps(true)}>Set up YouTube TV</F>
+          <F id="ys:tab" class="pill" onSelect={() => { back(); openTab('https://www.youtube.com', 'YouTube', 'youtube'); }}>Open regular YouTube</F>
+          <F id="ys:quick" class="pill" onSelect={() => { back(); pushLayer('search'); }}>Quick search here</F>
+        </div>
+        {steps && (
+          <div class="ys-steps">
+            <ol class="steps">
+              <li>Download <b>{location.host}{zip}</b> on this computer and unzip it.</li>
+              <li>Open <b>brave://extensions</b> (Chrome: chrome://extensions, Edge: edge://extensions).</li>
+              <li>Turn on <b>Developer mode</b> (top right).</li>
+              <li>Click <b>Load unpacked</b> and choose the unzipped <b>mcm-companion</b> folder.</li>
+              <li>Come back and reload MCM (F5). The YouTube tile then opens YouTube’s TV app.</li>
+            </ol>
+            <F id="ys:download" class="pill primary" onSelect={download}>Download the extension</F>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}

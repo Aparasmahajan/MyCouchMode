@@ -8,6 +8,8 @@ import { signal } from '@preact/signals';
 export const ext = signal<{ version: string; adblock: boolean } | null>(null);
 /** True while an app MCM opened is in front (MCM's own tab is in the background). */
 export const away = signal(false);
+/** How the phone drives the site in front: a mouse pointer, or TV-remote keys (YouTube TV). */
+export const awayMode = signal<'pointer' | 'keys'>('pointer');
 
 let rid = 0;
 const waiting = new Map<number, (r: any) => void>();

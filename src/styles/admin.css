@@ -106,3 +106,12 @@ input[type="color"] { width: 46px; height: 42px; padding: 2px; border-radius: 10
   .actions { width: 100%; justify-content: flex-start; padding-left: 42px; }
   .url-row { flex-direction: column; align-items: stretch; }
 }
+
+.a-tabs { display: flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--panel); width: max-content; max-width: 100%; }
+.a-tabs button { padding: 8px 18px; border-radius: 9px; color: var(--muted); font-weight: 600; }
+.a-tabs button[aria-selected="true"] { background: var(--panel-2); color: var(--text); }
+.yt-settings { display: grid; gap: 12px; max-width: 680px; }
+.yt-settings h1 { margin: 0; }
+.yt-settings p { margin: 0; }
+.yt-settings form { display: grid; gap: 4px; }
+input:disabled { opacity: .5; }
