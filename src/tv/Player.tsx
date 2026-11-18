@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { F, focused, popLayer, pushLayer, setFocus, useLayerKeys } from '../lib/nav';
 import { Icon } from '../lib/logos';
 import { lastSource, stickX, rumble } from '../lib/input';
-import { activeId, saveProgress, volume } from '../lib/store';
-import { loadYouTubeApi, thumbOf } from '../lib/youtube';
+import { activeId, getHistory, saveProgress, volume } from '../lib/store';
+import { loadYouTubeApi, recommended, thumbOf, type SearchItem } from '../lib/youtube';
+import { canInstall } from '../lib/install';
 import {
-  back, goRest, nowPlaying, player, playerMenu, playerOpts, playReq, setSleep, showToast, sleepAtEnd, sleepMins, toggleFill,
+  back, goRest, kidsMode, nowPlaying, player, playerMenu, playerOpts, playReq, playVideo, setSleep, showToast, sleepAtEnd, sleepMins, toggleAutoplay, toggleFill,
 } from './state';
 
 const DEFAULT_RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
@@ -66,6 +67,11 @@ export function Player() {
           },
           onStateChange: (e: any) => {
             setState((s) => ({ ...s, playing: e.data === 1 }));
+            if (e.data === 1) {
+              // YouTube ignores speed changes made before a video starts, and resets it for new videos.
+              const want = playerOpts.peek().rate;
+              if (e.target.getPlaybackRate?.() !== want) e.target.setPlaybackRate(want);
+            }
             if (e.data === 0) onEnded();
           },
           onPlaybackRateChange: (e: any) => (playerOpts.value = { ...playerOpts.peek(), rate: e.data }),
@@ -81,7 +87,41 @@ export function Player() {
     if (playerOpts.peek().loop && p) { p.seekTo(0, true); p.playVideo(); return; }
     if (sleepAtEnd.peek()) { showToast('Sleep timer: the video ended, so MCM is going to rest.'); setTimeout(goRest, 1500); return; }
     setChrome(true);
+    if (playerOpts.peek().autoplay && upNextRef.current[0]) { setCountdown(6); setTimeout(() => setFocus('un:play', true), 30); }
   }
+
+  // Up next: the list this video came from (search results / recommendations), topped up with
+  // more from the channels you watch and trending.
+  const [upNext, setUpNext] = useState<SearchItem[]>([]);
+  const upNextRef = useRef<SearchItem[]>([]);
+  upNextRef.current = upNext;
+  const [countdown, setCountdown] = useState<number | null>(null);
+  useEffect(() => {
+    if (!req) return;
+    setCountdown(null);
+    const fromQueue = (req.queue || []).filter((q) => q.id !== req.id);
+    setUpNext(fromQueue);
+    if (fromQueue.length >= 3) return;
+    const watched = [req.id, ...(activeId.value ? getHistory(activeId.value).map((h) => h.id) : [])];
+    recommended(watched, kidsMode(), 12).then((recs) => {
+      if (playReq.peek()?.id !== req.id) return;
+      const have = new Set(fromQueue.map((q) => q.id));
+      setUpNext([...fromQueue, ...recs.filter((r) => !have.has(r.id))]);
+    });
+  }, [req?.id]);
+  const playNext = () => {
+    const [n, ...rest] = upNextRef.current;
+    if (!n) return showToast('Nothing up next yet.');
+    setCountdown(null);
+    playVideo({ id: n.id, title: n.title, channel: n.channel, queue: rest });
+    setTimeout(() => setFocus('pl:play', true), 30);
+  };
+  useEffect(() => {
+    if (countdown === null) return;
+    if (countdown <= 0) { playNext(); return; }
+    const id = setTimeout(() => setCountdown((c) => (c === null ? null : c - 1)), 1000);
+    return () => clearTimeout(id);
+  }, [countdown]);
 
   // Poll position, save progress every 5 s, publish "now playing" for the phone.
   useEffect(() => {
@@ -96,7 +136,7 @@ export function Player() {
       const channel = p.getVideoData?.()?.author || req.channel;
       const playing = p.getPlayerState?.() === 1;
       setState((s) => ({ ...s, pos, dur, title, playing }));
-      nowPlaying.value = { id: req.id, title, channel, pos, dur, playing };
+      nowPlaying.value = { id: req.id, title, channel, pos, dur, playing, muted: mutedByBrowser.current };
       if (++tick % 5 === 0 && dur > 0 && activeId.value) saveProgress(activeId.value, { id: req.id, title, channel, thumb: thumbOf(req.id), pos, dur, at: Date.now() });
     }, 1000);
     return () => clearInterval(id);
@@ -139,8 +179,22 @@ export function Player() {
       toggle: () => { const p = yt.current; if (!p) return; p.getPlayerState() === 1 ? p.pauseVideo() : p.playVideo(); poke(); },
       seek: (d) => { const p = yt.current; if (!p) return; p.seekTo(Math.max(0, p.getCurrentTime() + d), true); poke(); },
       seekTo: (sec) => { const p = yt.current; if (!p) return; p.seekTo(Math.max(0, sec), true); poke(); },
+      next: () => playNext(),
       setVolume: (v) => { const p = yt.current; if (!p) return; v ? (p.unMute(), p.setVolume(v)) : p.mute(); },
-      setRate: (r) => { yt.current?.setPlaybackRate(r); playerOpts.value = { ...playerOpts.peek(), rate: r }; poke(); },
+      setRate: (r) => {
+        const p = yt.current;
+        p?.setPlaybackRate(r);
+        playerOpts.value = { ...playerOpts.peek(), rate: r };
+        poke();
+        // Some videos (live streams, some music) don't allow every speed: say so instead of showing a wrong label.
+        setTimeout(() => {
+          const actual = p?.getPlaybackRate?.();
+          if (p?.getPlayerState?.() === 1 && actual && actual !== r) {
+            playerOpts.value = { ...playerOpts.peek(), rate: actual };
+            showToast(`This video doesn't allow ${r}× speed.`);
+          }
+        }, 800);
+      },
       rates: () => yt.current?.getAvailablePlaybackRates?.() || DEFAULT_RATES,
       rate: () => yt.current?.getPlaybackRate?.() || playerOpts.peek().rate,
       setLoop: (on) => { playerOpts.value = { ...playerOpts.peek(), loop: on }; poke(); },
@@ -186,14 +240,36 @@ export function Player() {
   const showSeek = (d: number) => { poke(); setSeekHint((h) => ({ d: h && Math.sign(h.d) === Math.sign(d) && Date.now() - h.n < 1200 ? h.d + d : d, n: Date.now() })); };
   useEffect(() => { if (!seekHint) return; const id = setTimeout(() => setSeekHint(null), 1200); return () => clearTimeout(id); }, [seekHint?.n]);
 
-  // If the browser blocked autoplay with sound, tell the user how to start it.
+  // Browsers only allow sound after someone presses a key or clicks on this page (choosing from the
+  // phone doesn't count). If playback didn't start, play muted right away and turn the sound on at the
+  // first key press or click on the TV. Installed as an app, MCM is allowed to play with sound directly.
+  const mutedByBrowser = useRef(false);
   useEffect(() => {
     const id = setTimeout(() => {
       const p = yt.current;
-      if (p?.getPlayerState && p.getPlayerState() !== 1 && p.getPlayerState() !== 3) showToast('Press OK to start playing. Browsers need one button press before playing sound.');
-    }, 2500);
+      if (!p?.getPlayerState) return;
+      const st = p.getPlayerState();
+      if (st === 1 || st === 3) return; // playing or buffering
+      mutedByBrowser.current = true;
+      p.mute();
+      p.playVideo();
+      showToast(canInstall.value
+        ? 'Playing without sound: the browser needs one key press or click on the TV. Install MCM as an app (Control center) to always get sound.'
+        : 'Playing without sound: press any key or click once on the TV to turn the sound on.', undefined, 6000);
+    }, 1500);
     return () => clearTimeout(id);
   }, [req?.id]);
+  useEffect(() => {
+    const unmute = (e: Event) => {
+      if (!e.isTrusted || !mutedByBrowser.current) return;
+      mutedByBrowser.current = false;
+      const p = yt.current;
+      if (p && volume.peek() > 0) { p.unMute(); p.setVolume(volume.peek()); showToast('Sound on.'); }
+    };
+    window.addEventListener('keydown', unmute, true);
+    window.addEventListener('pointerdown', unmute, true);
+    return () => { window.removeEventListener('keydown', unmute, true); window.removeEventListener('pointerdown', unmute, true); };
+  }, []);
 
   const shown = scrub ?? state.pos;
   const pct = state.dur ? (shown / state.dur) * 100 : 0;
@@ -218,6 +294,20 @@ export function Player() {
       </div>
       {seekHint && <div class={`seek-hint ${seekHint.d < 0 ? 'l' : 'r'}`}>{seekHint.d > 0 ? '+' : '−'}{Math.abs(seekHint.d)}s</div>}
       {state.error && <div class="pl-error">{state.error}</div>}
+      {countdown !== null && upNext[0] && (
+        <div class="upnext" role="dialog" aria-label="Up next">
+          <img src={upNext[0].thumb} alt="" />
+          <div class="un-info">
+            <span class="un-k">Up next in {countdown} s</span>
+            <b>{upNext[0].title}</b>
+            <span class="un-c">{upNext[0].channel}</span>
+            <div class="un-actions">
+              <F id="un:play" class="pill primary" isDefault onSelect={playNext}><Icon name="play" /> Play now</F>
+              <F id="un:cancel" class="pill" onSelect={() => { setCountdown(null); setFocus('pl:play', true); }}>Cancel</F>
+            </div>
+          </div>
+        </div>
+      )}
       <div class="pl-bot">
         <F id="pl:bar" class={`bar scrub${scrub !== null ? ' active' : ''}`} nav={{ down: 'pl:play' }} aria-label="Timeline">
           <i style={{ width: pct + '%' }} />
@@ -235,6 +325,8 @@ export function Player() {
           <F id="pl:loop" class={`ctrl${opts.loop ? ' on' : ''}`} nav={up} onSelect={() => api()?.setLoop(!opts.loop)} aria-label="Loop video"><Icon name="loop" /></F>
           <F id="pl:fit" class="ctrl" nav={up} onSelect={toggleFill} aria-label={opts.fill ? 'Fit whole picture' : 'Fill the screen'}><Icon name="full" /><span>{opts.fill ? 'Fill' : 'Fit'}</span></F>
           <F id="pl:sleep" class={`ctrl${sleepAtEnd.value || sleepMins.value ? ' on' : ''}`} nav={up} onSelect={() => openMenu('sleep')} aria-label="Sleep timer"><Icon name="timer" /></F>
+          <F id="pl:next" class="ctrl" nav={up} onSelect={playNext} aria-label={upNext[0] ? `Next: ${upNext[0].title}` : 'Next video'}><Icon name="next" /></F>
+          <F id="pl:auto" class={`ctrl${opts.autoplay ? ' on' : ''}`} nav={up} onSelect={toggleAutoplay} aria-label="Autoplay"><span>Auto {opts.autoplay ? 'on' : 'off'}</span></F>
           <F id="pl:close" class="ctrl" nav={up} onSelect={back} aria-label="Close player"><Icon name="close" /></F>
           <span class="time">{fmt(shown)} / {fmt(state.dur)}</span>
         </div>

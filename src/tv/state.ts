@@ -29,9 +29,9 @@ export const resting = signal(false);
 export const entered = signal(0); // bumps to replay the home "zoom in" animation
 export const volHud = signal(0);
 
-export interface PlayReq { id: string; start?: number; title?: string; channel?: string }
+export interface PlayReq { id: string; start?: number; title?: string; channel?: string; queue?: { id: string; title: string; channel: string; thumb: string }[] }
 export const playReq = signal<PlayReq | null>(null);
-export const nowPlaying = signal<{ id: string; title: string; channel?: string; pos: number; dur: number; playing: boolean } | null>(null);
+export const nowPlaying = signal<{ id: string; title: string; channel?: string; pos: number; dur: number; playing: boolean; muted?: boolean } | null>(null);
 
 /** Set by the Player while it is mounted. */
 export interface PlayerApi {
@@ -44,9 +44,15 @@ export interface PlayerApi {
   rate(): number;
   setLoop(on: boolean): void;
   setCaptions(on: boolean): void;
+  next(): void;
 }
 /** Player options the TV and the phone both show. */
-export const playerOpts = signal({ rate: 1, loop: false, captions: false, fill: load<boolean>('mcm.fill', true) });
+export const playerOpts = signal({ rate: 1, loop: false, captions: false, fill: load<boolean>('mcm.fill', true), autoplay: load<boolean>('mcm.autoplay', true) });
+export function toggleAutoplay() {
+  const autoplay = !playerOpts.peek().autoplay;
+  playerOpts.value = { ...playerOpts.peek(), autoplay };
+  save('mcm.autoplay', autoplay);
+}
 /** Fill the whole screen (crops a little on non-16:9 screens) or fit the whole picture with bars. */
 export function toggleFill() {
   const fill = !playerOpts.peek().fill;

@@ -7,6 +7,7 @@ import { appById } from '../lib/apps';
 import { pad, textMode } from '../lib/input';
 import { AVATAR_COLORS, profiles, sfxOn, tvCode } from '../lib/store';
 import { ext } from '../lib/ext';
+import { canInstall, installed, promptInstall } from '../lib/install';
 import {
   back, chooseProfile, frameApp, goHome, goRest, has, openTab, openYouTube, nowPlaying, pinEntry, pinError, pinFor,
   setSleep, showToast, sleepAtEnd, sleepMins, typeChar,
@@ -110,6 +111,7 @@ export function ControlCenter() {
     ['profile', 'Switch profile', 'cc:profile', () => resetLayers(['home', 'welcome'])],
     ['phone', 'Pair a phone', 'cc:pair', () => { popLayer(); pushLayer('pair'); }],
     ['full', document.fullscreenElement ? 'Exit full screen' : 'Full screen', 'cc:full', toggleFullscreen],
+    ...(installed.value ? [] : [['install', 'Install MCM app (videos from the phone play with sound)', 'cc:install', installApp] as [string, string, string, () => void]]),
     ['timer', `Sleep timer: ${sleepAtEnd.value ? 'End of video' : sleepMins.value ? sleepMins.value + ' min' : 'Off'}`, 'cc:sleep', cycleSleep],
     ['sfx', `UI sounds: ${sfxOn.value ? 'On' : 'Off'}`, 'cc:sfx', () => (sfxOn.value = !sfxOn.value)],
     ['power', 'Rest mode', 'cc:rest', goRest],
@@ -160,6 +162,12 @@ function toggleFullscreen() {
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
   else document.documentElement.requestFullscreen().catch(() => showToast('Full screen needs a key press or click on the TV itself.'));
 }
+async function installApp() {
+  const r = canInstall.value ? await promptInstall() : 'unavailable';
+  if (r === 'accepted') return showToast('MCM is installed. Open it from your apps for full screen, and videos from the phone play with sound.', undefined, 5000);
+  if (r === 'unavailable') showToast('Use the install icon at the right end of the address bar, or the browser menu → Install MCM (Brave/Chrome: ⋮ → Cast, save and share → Install).', undefined, 6000);
+}
+
 function cycleSleep() {
   const steps: (number | 'end')[] = [0, 'end', 30, 60, 90];
   const cur = sleepAtEnd.value ? 'end' : sleepMins.value;

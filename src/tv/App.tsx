@@ -7,6 +7,7 @@ import { handleLayerKey, layers, move, pushLayer, popLayer, resetLayers, selectF
 import { activeId, addProfile, hashPin, lastProfileId, profiles, removeProfile, tvCode, newCode } from '../lib/store';
 import { appById, listenForSiteChanges, refreshSites, visibleSites } from '../lib/apps';
 import { away, awayMode, ext, extSend, initExt } from '../lib/ext';
+import { initInstall } from '../lib/install';
 import { parseYouTubeId } from '../lib/youtube';
 import { sfx } from '../lib/sfx';
 import {
@@ -112,6 +113,8 @@ function onPhone(m: Msg, reply: (r: Msg) => void) {
       setSleep(v);
       return showToast(v === 0 ? 'Sleep timer off.' : v === 'end' ? 'MCM will rest when this video ends.' : `MCM will rest in ${v} minutes.`);
     }
+    case 'next':
+      return player.api?.next();
     case 'submit':
       return void searchSubmit.value++;
     case 'closeApp':
@@ -146,6 +149,7 @@ function boot() {
   booted = true;
   startInput(onAction, typeChar);
   initExt();
+  initInstall();
   refreshSites();
   listenForSiteChanges();
   // Pick up sites the admin added: when the TV wakes up / comes back, and every 10 minutes.

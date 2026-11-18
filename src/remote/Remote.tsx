@@ -12,7 +12,7 @@ interface TvState {
   layer: string;
   query: string;
   pinFor: string | null;
-  now: { id: string; title: string; channel?: string; pos: number; dur: number; playing: boolean } | null;
+  now: { id: string; title: string; channel?: string; pos: number; dur: number; playing: boolean; muted?: boolean } | null;
   opts?: { rate: number; loop: boolean; captions: boolean };
   sleep?: { mins: number; atEnd: boolean };
   apps?: { id: string; name: string; color: string; icon?: string; kids: boolean }[];
@@ -183,6 +183,7 @@ function RemotePad({ tv, send, keyFn, kids }: { tv: TvState; send: (m: Msg) => v
               <span class="muted">{fmt(drag ?? np.pos)} / {fmt(np.dur)}</span>
             </div>
           </div>
+          {np.muted && <p class="muted-note">Playing without sound: the TV's browser needs one key press or click on the TV. Install MCM as an app on the TV (Control center → Install MCM app) to always get sound.</p>}
           <input class="seek" type="range" min={0} max={Math.max(1, Math.floor(np.dur))} step={1} value={Math.floor(drag ?? np.pos)} aria-label="Seek"
             onInput={(e) => setDrag(Number((e.target as HTMLInputElement).value))}
             onChange={(e) => { send({ t: 'seekTo', pos: Number((e.target as HTMLInputElement).value) }); setTimeout(() => setDrag(null), 1200); }} />
@@ -190,6 +191,7 @@ function RemotePad({ tv, send, keyFn, kids }: { tv: TvState; send: (m: Msg) => v
             <button onClick={() => send({ t: 'seek', d: -10 })} aria-label="Back 10 seconds"><Icon name="rew" /></button>
             <button class="pp" onClick={() => keyFn('playpause')} aria-label={np.playing ? 'Pause' : 'Play'}><Icon name={np.playing ? 'pause' : 'play'} /></button>
             <button onClick={() => send({ t: 'seek', d: 10 })} aria-label="Forward 10 seconds"><Icon name="ff" /></button>
+            <button onClick={() => send({ t: 'next' })} aria-label="Next video"><Icon name="next" /></button>
             <span class="spacer" />
             <button class={opts.captions ? 'on' : ''} onClick={() => send({ t: 'captions', on: !opts.captions })} aria-label="Captions" aria-pressed={opts.captions}><Icon name="cc" /></button>
             <button class={opts.loop ? 'on' : ''} onClick={() => send({ t: 'loop', on: !opts.loop })} aria-label="Loop video" aria-pressed={opts.loop}><Icon name="loop" /></button>

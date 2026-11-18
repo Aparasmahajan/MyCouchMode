@@ -45,6 +45,15 @@ npm run dev
 | Speed, CC, Loop, Sleep buttons | Speed menu, captions, repeat the video, sleep timer |
 | Phone | Seek slider, ±10 s, speed chips, captions, loop, sleep timer |
 
+### Recommendations and Up next (built-in YouTube)
+- Home shows **Continue watching · Recommended**, and the search screen opens with **Recommended for you**: more from the channels you watched, then what's trending in your region (Kids profiles skip trending). These cost 1–2 quota units and are cached for 30–60 minutes.
+- When a video ends, **Up next** counts down 6 seconds and plays the next one (Play now / Cancel). The player has **Next** and **Auto on/off**; the phone has a Next button.
+
+### Videos sent from the phone don't start with sound?
+Browsers only allow a page to play sound after a key press or click *on that page*; choosing on the phone doesn't count. MCM then starts the video muted and turns the sound on at the first key press or click on the TV. To always get sound:
+- **Install MCM as an app** (Control center → Install MCM app, or the install icon in the address bar). Installed apps may autoplay with sound.
+- Or in Brave: **Site settings → Autoplay → Allow** for your MCM address (Chrome: **Sound → Allow** helps once you've played a few videos).
+
 ## Adding sites (admin)
 
 1. Open `https://<your-app>/admin` and sign in with `ADMIN_PASSWORD`.

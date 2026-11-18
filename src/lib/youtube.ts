@@ -68,3 +68,38 @@ export async function relatedVideos(id: string, signal?: AbortSignal): Promise<S
     return { error: 'failed', detail: String(e) };
   }
 }
+
+/* ---------- recommendations (cached in memory for this session) ---------- */
+const recCache = new Map<string, Promise<SearchItem[]>>();
+function cachedList(url: string): Promise<SearchItem[]> {
+  if (!recCache.has(url)) {
+    recCache.set(url, fetch(url).then((r) => (r.ok ? r.json() : { items: [] })).then((d) => d.items || []).catch(() => {
+      recCache.delete(url);
+      return [];
+    }));
+  }
+  return recCache.get(url)!;
+}
+/** Most popular videos in the admin's region. */
+export const fetchTrending = () => cachedList('/api/yt?op=trending');
+/** Latest uploads from the channel of `videoId` (excluding that video). */
+export const fetchRelated = (videoId: string) => cachedList(`/api/yt?op=related&id=${encodeURIComponent(videoId)}`);
+
+/** "Up next" / recommended: more from the channels you watch, then trending. No duplicates. */
+export async function recommended(watchedIds: string[], kids: boolean, limit = 12): Promise<SearchItem[]> {
+  const lists = await Promise.all([
+    ...watchedIds.slice(0, 2).map((id) => fetchRelated(id)),
+    kids ? Promise.resolve([] as SearchItem[]) : fetchTrending(), // trending isn't filtered for kids
+  ]);
+  const seen = new Set(watchedIds);
+  const out: SearchItem[] = [];
+  // Interleave so one channel doesn't take every slot.
+  for (let i = 0; out.length < limit && lists.some((l) => i < l.length); i++) {
+    for (const l of lists) {
+      const it = l[i];
+      if (it && !seen.has(it.id)) { seen.add(it.id); out.push(it); }
+      if (out.length >= limit) break;
+    }
+  }
+  return out;
+}

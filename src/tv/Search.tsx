@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'preact/hooks';
 import { F, focused, setFocus, useLayerKeys } from '../lib/nav';
 import { textMode } from '../lib/input';
-import { parseYouTubeId, searchYouTube, thumbOf, type SearchItem } from '../lib/youtube';
+import { parseYouTubeId, recommended, searchYouTube, thumbOf, type SearchItem } from '../lib/youtube';
+import { activeId, getHistory } from '../lib/store';
 import { kidsMode, playVideo, query, searchSubmit, typeChar } from './state';
 
 const KEYS = 'abcdefghijklmnopqrstuvwxyz1234567890'.split('');
@@ -44,6 +45,14 @@ export function Search() {
     if ((focused.peek() || '').startsWith('res:') && q !== searched) setFocus('q:box', true);
   }, [q]);
 
+  // Before searching, show recommendations: more from the channels you watched, then trending.
+  const [recs, setRecs] = useState<SearchItem[] | null>(null);
+  useEffect(() => {
+    const watched = activeId.value ? getHistory(activeId.value).map((h) => h.id) : [];
+    recommended(watched, kidsMode(), 10).then(setRecs);
+  }, []);
+  const scrollTo = (id: string) => document.querySelector(`[data-fid="${id}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+
   useLayerKeys('search', (a) => {
     if (a === 'ok' && focused.value === 'q:box') { submit(); return true; }
     return false;
@@ -82,6 +91,16 @@ export function Search() {
           </Note>
         ) : status === 'failed' ? (
           <Note title="Search isn't working right now">Check the internet connection, or the daily YouTube quota may be used up. Links from your phone still play.</Note>
+        ) : status === 'idle' && recs && recs.length ? (
+          <>
+            <h4>Recommended for you</h4>
+            {recs.map((it) => (
+              <F key={it.id} id={'res:' + it.id} class="res" onFocus={() => scrollTo('res:' + it.id)} onSelect={() => playVideo({ id: it.id, title: it.title, channel: it.channel, queue: recs })}>
+                <span class="rthumb"><img src={it.thumb} alt="" loading="lazy" /></span>
+                <div><div class="t2">{it.title}</div><div class="s2">{it.channel}</div></div>
+              </F>
+            ))}
+          </>
         ) : status === 'idle' ? (
           <Note title={kidsMode() ? 'Kids search' : 'Search YouTube'}>
             {kidsMode() ? 'Type, then press Enter or Search. Results use YouTube’s strict safe search.' : 'Type, then press Enter or the Search key. On the phone, type and press Go.'}
@@ -89,8 +108,8 @@ export function Search() {
         ) : (
           <>
             <h4>{status === 'loading' ? 'Searching…' : q !== searched ? `Press Enter to search for “${q}”` : items.length ? `Results for “${searched}”` : `Nothing found for “${searched}”`}</h4>
-            {items.slice(0, 5).map((it) => (
-              <F key={it.id} id={'res:' + it.id} class="res" onSelect={() => playVideo({ id: it.id, title: it.title, channel: it.channel })}>
+            {items.map((it) => (
+              <F key={it.id} id={'res:' + it.id} class="res" onFocus={() => scrollTo('res:' + it.id)} onSelect={() => playVideo({ id: it.id, title: it.title, channel: it.channel, queue: items })}>
                 <span class="rthumb"><img src={it.thumb} alt="" loading="lazy" /></span>
                 <div><div class="t2">{it.title}</div><div class="s2">{it.channel}</div></div>
               </F>

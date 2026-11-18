@@ -153,3 +153,4 @@ form .btn { margin-top: 12px; }
 .qi img.site-icon { width: 62%; height: 62%; object-fit: contain; border-radius: 6px; }
 .row-note { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .dpad .okb { font-size: 17px; }
+.muted-note { margin: 0; padding: 8px 12px; border-radius: 10px; background: #3a2f12; color: #ffe2a8; font-size: 12.5px; }
