@@ -5,7 +5,7 @@ import { lastSource, stickX, rumble } from '../lib/input';
 import { activeId, saveProgress, volume } from '../lib/store';
 import { loadYouTubeApi, thumbOf } from '../lib/youtube';
 import {
-  back, goRest, nowPlaying, player, playerMenu, playerOpts, playReq, setSleep, showToast, sleepAtEnd, sleepMins,
+  back, goRest, nowPlaying, player, playerMenu, playerOpts, playReq, setSleep, showToast, sleepAtEnd, sleepMins, toggleFill,
 } from './state';
 
 const DEFAULT_RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
@@ -204,7 +204,7 @@ export function Player() {
 
   return (
     <section class={`layer player${chrome ? '' : ' hide-chrome'}`} data-layer="player">
-      <div class="yt"><div ref={host} /></div>
+      <div class={`yt${opts.fill ? ' fill' : ''}`}><div ref={host} /></div>
       <div class="pl-shade" />
       <div class="pl-top">
         <div class="s">YouTube</div>
@@ -233,6 +233,7 @@ export function Player() {
           <F id="pl:speed" class="ctrl" nav={up} onSelect={() => openMenu('speed')} aria-label="Playback speed"><Icon name="speed" /><span>{rateLabel(opts.rate)}</span></F>
           <F id="pl:cc" class={`ctrl${opts.captions ? ' on' : ''}`} nav={up} onSelect={() => api()?.setCaptions(!opts.captions)} aria-label="Captions"><Icon name="cc" /></F>
           <F id="pl:loop" class={`ctrl${opts.loop ? ' on' : ''}`} nav={up} onSelect={() => api()?.setLoop(!opts.loop)} aria-label="Loop video"><Icon name="loop" /></F>
+          <F id="pl:fit" class="ctrl" nav={up} onSelect={toggleFill} aria-label={opts.fill ? 'Fit whole picture' : 'Fill the screen'}><Icon name="full" /><span>{opts.fill ? 'Fill' : 'Fit'}</span></F>
           <F id="pl:sleep" class={`ctrl${sleepAtEnd.value || sleepMins.value ? ' on' : ''}`} nav={up} onSelect={() => openMenu('sleep')} aria-label="Sleep timer"><Icon name="timer" /></F>
           <F id="pl:close" class="ctrl" nav={up} onSelect={back} aria-label="Close player"><Icon name="close" /></F>
           <span class="time">{fmt(shown)} / {fmt(state.dur)}</span>

@@ -1,5 +1,5 @@
 import { Fragment } from 'preact';
-import { useEffect } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { renderSVG } from 'uqr';
 import { F, popLayer, pushLayer, resetLayers } from '../lib/nav';
 import { AppIcon, Icon } from '../lib/logos';
@@ -8,7 +8,7 @@ import { pad, textMode } from '../lib/input';
 import { AVATAR_COLORS, profiles, sfxOn, tvCode } from '../lib/store';
 import { ext } from '../lib/ext';
 import {
-  back, chooseProfile, frameApp, goHome, goRest, has, openYouTube, nowPlaying, pinEntry, pinError, pinFor,
+  back, chooseProfile, frameApp, goHome, goRest, has, openTab, openYouTube, nowPlaying, pinEntry, pinError, pinFor,
   setSleep, showToast, sleepAtEnd, sleepMins, typeChar,
 } from './state';
 import { Clock, glyphs } from './Chrome';
@@ -194,3 +194,49 @@ export function Rest() {
   );
 }
 
+
+/* ---------- YouTube without the Companion extension ---------- */
+export function YouTubeSetup() {
+  const [steps, setSteps] = useState(false);
+  const yt = appById('youtube');
+  const zip = '/mcm-companion.zip';
+  const download = () => {
+    const a = document.createElement('a');
+    a.href = zip;
+    a.download = 'mcm-companion.zip';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    showToast('Downloading mcm-companion.zip. Unzip it, then follow the steps.');
+  };
+  return (
+    <section class="layer ytsetup" data-layer="ytsetup">
+      <div class="ys-card">
+        {yt && <span class="ti ys-logo" style={{ '--c': yt.color } as any}><AppIcon app={yt} /></span>}
+        <h2 class="layer-title">YouTube with your own account</h2>
+        <p class="layer-sub">
+          MCM can open YouTube’s real TV app here: everyone signs in with their own Google account using a code on their phone,
+          switches accounts, and gets their own recommendations, subscriptions and Premium. YouTube only gives that app to TVs,
+          so it needs the free <b>MCM Companion</b> extension in this browser. It’s a one-time, one-minute install.
+        </p>
+        <div class="ys-actions">
+          <F id="ys:install" class="pill primary" isDefault onSelect={() => setSteps(true)}>Set up YouTube TV</F>
+          <F id="ys:tab" class="pill" onSelect={() => { back(); openTab('https://www.youtube.com', 'YouTube', 'youtube'); }}>Open regular YouTube</F>
+          <F id="ys:quick" class="pill" onSelect={() => { back(); pushLayer('search'); }}>Quick search here</F>
+        </div>
+        {steps && (
+          <div class="ys-steps">
+            <ol class="steps">
+              <li>Download <b>{location.host}{zip}</b> on this computer and unzip it.</li>
+              <li>Open <b>brave://extensions</b> (Chrome: chrome://extensions, Edge: edge://extensions).</li>
+              <li>Turn on <b>Developer mode</b> (top right).</li>
+              <li>Click <b>Load unpacked</b> and choose the unzipped <b>mcm-companion</b> folder.</li>
+              <li>Come back and reload MCM (F5). The YouTube tile then opens YouTube’s TV app.</li>
+            </ol>
+            <F id="ys:download" class="pill primary" onSelect={download}>Download the extension</F>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}

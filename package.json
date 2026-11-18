@@ -1,6 +1,6 @@
 {
   "name": "mcm",
-  "displayName": "MCM · My Couch Mode",
+  "displayName": "MCM \u00b7 My Couch Mode",
   "version": "0.1.0",
   "private": true,
   "description": "A console-style TV interface for the browser, driven by a game controller or your phone.",
@@ -10,7 +10,9 @@
     "dev": "vite --host",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prebuild": "node scripts/zip-extension.mjs",
+    "predev": "node scripts/zip-extension.mjs"
   },
   "dependencies": {
     "@preact/signals": "^2.11.4",

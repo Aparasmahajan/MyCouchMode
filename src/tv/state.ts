@@ -1,6 +1,6 @@
 import { signal } from '@preact/signals';
 import { appById } from '../lib/apps';
-import { activeId, activeProfile, hashPin, lastProfileId, profiles, volume } from '../lib/store';
+import { activeId, activeProfile, hashPin, lastProfileId, load, profiles, save, volume } from '../lib/store';
 import { layers, popLayer, pushLayer, resetLayers, topLayer } from '../lib/nav';
 import { away, awayMode, ext, extSend } from '../lib/ext';
 
@@ -46,7 +46,13 @@ export interface PlayerApi {
   setCaptions(on: boolean): void;
 }
 /** Player options the TV and the phone both show. */
-export const playerOpts = signal({ rate: 1, loop: false, captions: false });
+export const playerOpts = signal({ rate: 1, loop: false, captions: false, fill: load<boolean>('mcm.fill', true) });
+/** Fill the whole screen (crops a little on non-16:9 screens) or fit the whole picture with bars. */
+export function toggleFill() {
+  const fill = !playerOpts.peek().fill;
+  playerOpts.value = { ...playerOpts.peek(), fill };
+  save('mcm.fill', fill);
+}
 export const player: { api: PlayerApi | null } = { api: null };
 
 /** Sleep timer choices shared by the player menu, the control center and the phone. */
@@ -109,7 +115,9 @@ export async function openTab(url: string, name: string, appId?: string, mode: '
 export function openYouTube(hash = '') {
   if (ext.value) return openTab(`https://www.youtube.com/tv${hash}`, 'YouTube', 'youtube', 'keys');
   if (hash.startsWith('#/watch?v=')) return playVideo({ id: hash.slice(10) });
-  pushLayer('search');
+  if (hash.startsWith('#/search')) return pushLayer('search');
+  // The YouTube tile itself: explain the choices instead of silently opening search.
+  pushLayer('ytsetup');
 }
 
 /** Bumped to run a search (Enter on the query box, the Search key, or the phone keyboard's Go). */

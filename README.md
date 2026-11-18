@@ -67,7 +67,7 @@ With the Companion extension, the YouTube tile opens **YouTube's own TV app** (y
 
 YouTube only serves the TV app to TVs, so the extension makes that one tab identify itself as a Samsung Tizen TV. Desktop YouTube-TV apps work the same way. YouTube could change this at any time; if it stops working, the tile still opens regular YouTube.
 
-Without the extension, YouTube uses MCM's built-in search and player: type, then press Enter (or the phone's Go) to search.
+Without the extension, the YouTube tile explains this and offers **Set up YouTube TV** (download + steps), **Open regular YouTube** (sign in on youtube.com in a tab), or **Quick search here** (MCM's built-in search and player: type, then Enter or the phone's Go). The player fills the screen by default; **Fit/Fill** switches to showing the whole picture.
 
 ## Mouse mode for any site (Vzy, Crunchyroll, …)
 
@@ -81,7 +81,9 @@ Without the extension, sites that allow embedding open inside MCM, where only a 
 
 Websites can't control other websites, so a small browser extension does that part. It lives in [`extension/`](extension).
 
-**Install (Chrome, Edge or Brave):** open `chrome://extensions` → turn on **Developer mode** → **Load unpacked** → choose the `extension` folder. Then reload MCM; the control center shows **Companion: Installed**. After updating the folder, press the extension's **reload** button on `chrome://extensions`.
+**Get it:** download `https://<your-app>/mcm-companion.zip` (the YouTube tile's **Set up YouTube TV** button does this) and unzip it. It is rebuilt from `extension/` on every deploy.
+
+**Install (Chrome, Edge or Brave):** open `chrome://extensions` (Brave: `brave://extensions`) → turn on **Developer mode** → **Load unpacked** → choose the `extension` folder. Then reload MCM; the control center shows **Companion: Installed**. After updating the folder, press the extension's **reload** button on `chrome://extensions`.
 
 What it adds:
 - Apps open in one tab next to MCM, with no pop-up blocking.

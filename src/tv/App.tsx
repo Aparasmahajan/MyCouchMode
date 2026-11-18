@@ -3,7 +3,7 @@ import { effect } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
 import { startInput, rumble, lastSource, type Action } from '../lib/input';
 import { host, type HostLink, type Msg } from '../lib/link';
-import { handleLayerKey, move, pushLayer, popLayer, resetLayers, selectFocused, topLayer } from '../lib/nav';
+import { handleLayerKey, layers, move, pushLayer, popLayer, resetLayers, selectFocused, topLayer } from '../lib/nav';
 import { activeId, addProfile, hashPin, lastProfileId, profiles, removeProfile, tvCode, newCode } from '../lib/store';
 import { appById, listenForSiteChanges, refreshSites, visibleSites } from '../lib/apps';
 import { away, awayMode, ext, extSend, initExt } from '../lib/ext';
@@ -16,7 +16,7 @@ import {
 import { Home } from './Home';
 import { Search } from './Search';
 import { Player, PlayerMenu } from './Player';
-import { ControlCenter, Frame, Pair, PinPad, Rest, Welcome } from './Overlays';
+import { ControlCenter, Frame, Pair, PinPad, Rest, Welcome, YouTubeSetup } from './Overlays';
 import { Backdrop, Hints, Toast, VolumeHud } from './Chrome';
 
 export let link: HostLink | null = null;
@@ -184,19 +184,25 @@ function boot() {
 export function TvApp() {
   useEffect(boot, []);
   const top = topLayer();
+  // Each open screen sits in a slot stacked by the order it was opened, so the newest is always in
+  // front (e.g. a video started from search covers the search screen). Slots never move in the DOM,
+  // which keeps the YouTube player from reloading.
+  const slot = (name: string, el: any) =>
+    has(name) && <div class="slot" style={{ zIndex: 10 + layers.value.indexOf(name) }}>{el}</div>;
   return (
     <div class="stage">
       <div class={`tv top-${top}`} style={{ '--tint': tint.value } as any}>
         <Backdrop />
         <Home />
-        {has('welcome') && <Welcome />}
-        {has('player') && <Player />}
-        {has('frame') && <Frame />}
-        {has('search') && <Search />}
-        {has('pair') && <Pair />}
-        {has('pin') && <PinPad />}
-        {has('pmenu') && <PlayerMenu />}
-        {has('cc') && <ControlCenter />}
+        {slot('welcome', <Welcome />)}
+        {slot('player', <Player />)}
+        {slot('frame', <Frame />)}
+        {slot('search', <Search />)}
+        {slot('ytsetup', <YouTubeSetup />)}
+        {slot('pair', <Pair />)}
+        {slot('pin', <PinPad />)}
+        {slot('pmenu', <PlayerMenu />)}
+        {slot('cc', <ControlCenter />)}
         {resting.value && <Rest />}
         <Hints />
         <VolumeHud />
