@@ -6,12 +6,12 @@ import { host, type HostLink, type Msg } from '../lib/link';
 import { handleLayerKey, move, pushLayer, popLayer, resetLayers, selectFocused, topLayer } from '../lib/nav';
 import { activeId, addProfile, hashPin, lastProfileId, profiles, removeProfile, tvCode, newCode } from '../lib/store';
 import { appById, listenForSiteChanges, refreshSites, visibleSites } from '../lib/apps';
-import { away, ext, extSend, initExt } from '../lib/ext';
+import { away, awayMode, ext, extSend, initExt } from '../lib/ext';
 import { parseYouTubeId } from '../lib/youtube';
 import { sfx } from '../lib/sfx';
 import {
-  activate, back, changeVolume, goHome, goRest, has, launchApp, nowPlaying, pinFor, player, playerOpts, playVideo,
-  query, resting, setSleep, setText, showToast, sleepAtEnd, sleepMins, tint, typeChar,
+  activate, back, changeVolume, goHome, goRest, has, launchApp, nowPlaying, pinFor, player, playerOpts,
+  openYouTube, query, resting, searchSubmit, setSleep, setText, showToast, sleepAtEnd, sleepMins, tint, typeChar,
 } from './state';
 import { Home } from './Home';
 import { Search } from './Search';
@@ -38,7 +38,7 @@ function onAction(a: Action) {
       if (!activeId.value) return;
       return topLayer() === 'cc' ? popLayer() : pushLayer('cc');
     case 'search':
-      if (activeId.value && topLayer() !== 'search') pushLayer('search');
+      if (activeId.value && topLayer() !== 'search') openYouTube('#/search');
       return;
     case 'playpause': return player.api?.toggle();
     case 'volup': return changeVolume(5);
@@ -48,13 +48,13 @@ function onAction(a: Action) {
 }
 
 /** Phone messages that drive whatever site is in front while an app is open in its own tab. */
-const FORWARD = new Set(['key', 'text', 'pointer', 'click', 'scroll', 'enter', 'seek', 'rate']);
+const FORWARD = new Set(['key', 'text', 'pointer', 'click', 'scroll', 'enter', 'submit', 'seek', 'rate']);
 
 function onPhone(m: Msg, reply: (r: Msg) => void) {
   if (m.t !== 'hello') lastSource.value = 'phone';
   if (away.value && FORWARD.has(m.t)) {
     if (m.t === 'key' && m.k === 'home') { extSend({ type: 'home' }); away.value = false; return goHome(); }
-    extSend({ type: 'cmd', cmd: m }).then((r) => { if (r && !r.ok && r.error === 'app_tab_gone') away.value = false; });
+    extSend({ type: 'cmd', cmd: m.t === 'submit' ? { t: 'enter' } : m }).then((r) => { if (r && !r.ok && r.error === 'app_tab_gone') away.value = false; });
     return;
   }
   switch (m.t) {
@@ -74,7 +74,7 @@ function onPhone(m: Msg, reply: (r: Msg) => void) {
       const id = parseYouTubeId(String(m.url || ''));
       if (!id) return reply({ t: 'error', msg: 'That does not look like a YouTube link.' });
       if (!activeId.value) return reply({ t: 'error', msg: 'Pick a profile on the TV first.' });
-      playVideo({ id });
+      openYouTube(`#/watch?v=${id}`);
       return reply({ t: 'ok', msg: 'Playing on the TV.' });
     }
     case 'profile': {
@@ -112,6 +112,8 @@ function onPhone(m: Msg, reply: (r: Msg) => void) {
       setSleep(v);
       return showToast(v === 0 ? 'Sleep timer off.' : v === 'end' ? 'MCM will rest when this video ends.' : `MCM will rest in ${v} minutes.`);
     }
+    case 'submit':
+      return void searchSubmit.value++;
     case 'closeApp':
       extSend({ type: 'home', close: true });
       away.value = false;
@@ -133,6 +135,7 @@ function stateMsg(): Msg {
     sleep: { mins: sleepMins.value, atEnd: sleepAtEnd.value },
     apps: visibleSites().map((a) => ({ id: a.id, name: a.name, color: a.color, icon: a.icon, kids: !!a.kids })),
     away: away.value,
+    awayMode: awayMode.value,
     ext: !!ext.value,
   };
 }

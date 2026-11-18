@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
-import { adminConfigured, isAdmin, send } from './_lib';
+import { adminConfigured, isAdmin, send } from './_lib.js';
 
 /**
  * GET /api/site-check?url=https://example.com   (admin only once ADMIN_PASSWORD is set)

@@ -17,8 +17,8 @@ export interface AppDef {
 }
 
 export const DEFAULT_APPS: AppDef[] = [
-  { id: 'youtube', name: 'YouTube', color: '#e0352b', mode: 'youtube', kids: true, desc: 'Search, play and resume videos. Your controller and phone run the player, and your place is saved for each profile.' },
-  { id: 'vzy', name: 'Vzy', color: '#6b5cff', mode: 'frame', url: 'https://www.vzy.one/en', desc: 'Movies, series and live TV. The site allows embedding, so it opens inside MCM.' },
+  { id: 'youtube', name: 'YouTube', color: '#e0352b', mode: 'youtube', kids: true, desc: 'YouTube’s own TV app: sign in with your account (or anyone’s), with your recommendations, subscriptions and Premium. Controller and phone work as a TV remote.' },
+  { id: 'vzy', name: 'Vzy', color: '#6b5cff', mode: 'frame', url: 'https://www.vzy.one/en', desc: 'Movies, series and live TV. With the Companion extension it opens in its own tab, and your phone or controller works as a mouse.' },
   { id: 'hotstar', name: 'JioHotstar', color: '#2353e6', mode: 'tab', url: 'https://www.hotstar.com/in', desc: 'Opens in a new tab. Press Home on your phone remote, or switch back to the MCM tab, to return.' },
   { id: 'zee5', name: 'ZEE5', color: '#8b2fc9', mode: 'tab', url: 'https://www.zee5.com', desc: 'Opens in a new tab.' },
   { id: 'sonyliv', name: 'SonyLIV', color: '#c9821a', mode: 'tab', url: 'https://www.sonyliv.com', desc: 'Opens in a new tab.' },
@@ -30,7 +30,7 @@ export const DEFAULT_APPS: AppDef[] = [
 export const APPS = DEFAULT_APPS;
 
 export const MODE_LABEL: Record<AppMode, [string, string]> = {
-  youtube: ['inside', 'Plays inside MCM'],
+  youtube: ['inside', 'YouTube TV app'],
   frame: ['inside', 'Opens inside MCM'],
   tab: ['tab', 'Opens in a new tab'],
 };
@@ -64,7 +64,8 @@ export function normalize(list: unknown): AppDef[] | null {
       color: /^#[0-9a-f]{6}$/i.test(raw.color) ? raw.color : '#3b5bff',
       mode,
       url,
-      desc: String(raw.desc || '').slice(0, 200),
+      // The built-in YouTube tile's behaviour comes from the code, so its text does too.
+      desc: mode === 'youtube' ? DEFAULT_APPS[0].desc : String(raw.desc || '').slice(0, 200),
       kids: !!raw.kids,
       icon: typeof raw.icon === 'string' && /^https:\/\//i.test(raw.icon) ? raw.icon : undefined,
       hidden: !!raw.hidden,

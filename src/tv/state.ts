@@ -2,7 +2,7 @@ import { signal } from '@preact/signals';
 import { appById } from '../lib/apps';
 import { activeId, activeProfile, hashPin, lastProfileId, profiles, volume } from '../lib/store';
 import { layers, popLayer, pushLayer, resetLayers, topLayer } from '../lib/nav';
-import { away, ext, extSend } from '../lib/ext';
+import { away, awayMode, ext, extSend } from '../lib/ext';
 
 /* ---------- UI signals shared by TV screens ---------- */
 export const toast = signal<{ msg: string; app?: string; n: number } | null>(null);
@@ -68,7 +68,9 @@ export const has = (layer: string) => layers.value.includes(layer);
 export function launchApp(id: string) {
   const a = appById(id);
   if (!a) return;
-  if (a.mode === 'youtube') return pushLayer('search');
+  if (a.mode === 'youtube') return openYouTube();
+  // With the Companion, every site opens in its own tab where the phone and controller work as a mouse.
+  if (a.mode === 'frame' && ext.value) return openTab(a.url!, a.name, a.id);
   if (a.mode === 'frame') {
     frameApp.value = a.id;
     return pushLayer('frame');
@@ -76,13 +78,16 @@ export function launchApp(id: string) {
   openTab(a.url!, a.name, a.id);
 }
 
-export async function openTab(url: string, name: string, appId?: string) {
+export async function openTab(url: string, name: string, appId?: string, mode: 'pointer' | 'keys' = 'pointer') {
   // With the MCM Companion extension: no pop-up blocker, and the phone + controller keep working there.
   if (ext.value) {
     const r = await extSend({ type: 'open', url });
     if (r?.ok) {
       away.value = true;
-      showToast(`${name} is open. Your phone remote and controller work there too. Press Home or PS to come back.`, appId, 4000);
+      awayMode.value = mode;
+      showToast(mode === 'keys'
+        ? `${name} is open. Your controller and phone work as its remote. PS or Home comes back to MCM.`
+        : `${name} is open. Stick or phone trackpad moves the pointer, ✕ or tap clicks. PS or Home comes back to MCM.`, appId, 4500);
       return;
     }
   }
@@ -95,6 +100,20 @@ export async function openTab(url: string, name: string, appId?: string) {
   showToast(`The browser blocked the new tab, so ${name} opens here. Use the browser's Back to return. Allow pop-ups for MCM, or install the MCM Companion extension.`, appId, 4500);
   setTimeout(() => location.assign(url), 3200);
 }
+
+/**
+ * YouTube = YouTube's own TV app (youtube.com/tv) when the Companion is installed:
+ * real accounts, recommendations, subscriptions, Premium. Without it, MCM's built-in search and player.
+ * `hash` deep-links inside the TV app, e.g. "#/search" or "#/watch?v=ID".
+ */
+export function openYouTube(hash = '') {
+  if (ext.value) return openTab(`https://www.youtube.com/tv${hash}`, 'YouTube', 'youtube', 'keys');
+  if (hash.startsWith('#/watch?v=')) return playVideo({ id: hash.slice(10) });
+  pushLayer('search');
+}
+
+/** Bumped to run a search (Enter on the query box, the Search key, or the phone keyboard's Go). */
+export const searchSubmit = signal(0);
 
 export function playVideo(req: PlayReq) {
   playReq.value = { ...req };
@@ -164,6 +183,7 @@ export function setText(v: string) {
     return;
   }
   if (!activeId.value) return;
+  if (ext.value) return; // YouTube TV handles typing itself (the phone's text goes to its search)
   if (topLayer() !== 'search') pushLayer('search');
   query.value = v.slice(0, 80);
 }

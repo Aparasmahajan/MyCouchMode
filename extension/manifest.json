@@ -2,26 +2,69 @@
   "manifest_version": 3,
   "name": "MCM Companion",
   "short_name": "MCM",
-  "version": "0.2.0",
-  "description": "Use your game controller and the MCM phone remote on any website, and block ads. Part of MCM · My Couch Mode by Paras Mahajan.",
+  "version": "0.3.0",
+  "description": "Use your game controller and the MCM phone remote on any website, run YouTube's TV app with your own account, and block ads. Part of MCM \u00b7 My Couch Mode by Paras Mahajan.",
   "author": "Paras Mahajan",
-  "icons": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "action": {
     "default_title": "MCM Companion",
     "default_popup": "popup.html",
-    "default_icon": { "16": "icons/icon16.png", "32": "icons/icon32.png" }
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
   },
-  "background": { "service_worker": "background.js" },
-  "permissions": ["storage", "declarativeNetRequest"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "storage",
+    "declarativeNetRequest"
+  ],
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
-      "css": ["content.css"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
       "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://www.youtube.com/tv*"
+      ],
+      "js": [
+        "yttv-main.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
     }
   ],
   "declarative_net_request": {
-    "rule_resources": [{ "id": "ads", "enabled": true, "path": "rules/ads.json" }]
-  }
+    "rule_resources": [
+      {
+        "id": "ads",
+        "enabled": true,
+        "path": "rules/ads.json"
+      },
+      {
+        "id": "yttv",
+        "enabled": true,
+        "path": "rules/yttv.json"
+      }
+    ]
+  },
+  "host_permissions": [
+    "*://*.youtube.com/*"
+  ]
 }

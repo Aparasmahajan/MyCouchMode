@@ -4,13 +4,13 @@ import { AppIcon, Icon } from '../lib/logos';
 import { F, focused, pushLayer } from '../lib/nav';
 import { pad } from '../lib/input';
 import { AVATAR_COLORS, activeProfile, getHistory, type WatchItem } from '../lib/store';
-import { art, entered, launchApp, playVideo, tint } from './state';
+import { art, entered, launchApp, openYouTube, playVideo, tint } from './state';
 import { Clock } from './Chrome';
 import { link } from './App';
 
 type Hero = { kind: 'app'; app: AppDef } | { kind: 'video'; item: WatchItem };
 
-const TILE_STEP = 8.2; // cqw: tile width + gap
+const TILE_STEP = 8.2; // in --u units: tile width + gap
 const CARD_STEP = 18.2;
 
 export function Home() {
@@ -52,7 +52,7 @@ export function Home() {
         <span class="spacer" />
         <span class="mini" title="Controller"><Icon name="pad" /><span class={`dot${pad.value.connected ? '' : ' off'}`} /></span>
         <span class="mini" title="Phone remotes"><Icon name="phone" /><span class={`dot${phones ? '' : ' off'}`} />{phones > 1 ? phones : ''}</span>
-        <F id="top:search" class="icon-btn" onSelect={() => pushLayer('search')} aria-label="Search"><Icon name="search" /></F>
+        <F id="top:search" class="icon-btn" onSelect={() => openYouTube('#/search')} aria-label="Search"><Icon name="search" /></F>
         <F id="top:cc" class="icon-btn" onSelect={() => pushLayer('cc')} aria-label="Control center"><Icon name="gear" /></F>
         <F id="top:profile" class="avatar" style={{ background: AVATAR_COLORS[prof?.color ?? 0] }} onSelect={() => pushLayer('welcome')} aria-label="Switch profile">
           {prof?.name[0] || '?'}
@@ -61,7 +61,7 @@ export function Home() {
       </div>
 
       <div class="rail apps">
-        <div class="track" style={{ transform: `translateX(${-Math.max(0, Math.min(tileShift, apps.length - 3)) * TILE_STEP}cqw)` }}>
+        <div class="track" style={{ transform: `translateX(calc(${-Math.max(0, Math.min(tileShift, apps.length - 3)) * TILE_STEP} * var(--u)))` }}>
           {apps.map((a) => (
             <F key={a.id} id={'app:' + a.id} class="tile" isDefault={a.id === 'youtube'} onFocus={() => showApp(a)} onSelect={() => launchApp(a.id)} nav={{ down: 'hero:open' }}>
               <span class="ic" style={{ '--c': a.color } as any}>
@@ -95,13 +95,13 @@ export function Home() {
           <F id="hero:open" class="pill primary" onSelect={openHero} nav={{ up: toTiles, down: toCards }}>
             {hero.kind === 'video' ? 'Resume' : hero.app.mode === 'tab' ? 'Open in new tab' : 'Open'}
           </F>
-          <F id="hero:search" class="pill round" onSelect={() => pushLayer('search')} nav={{ up: toTiles, down: toCards }} aria-label="Search"><Icon name="search" /></F>
+          <F id="hero:search" class="pill round" onSelect={() => openYouTube('#/search')} nav={{ up: toTiles, down: toCards }} aria-label="Search"><Icon name="search" /></F>
         </div>
       </div>
 
       <div class="rail cont">
         <h3>Continue watching</h3>
-        <div class="track" style={{ transform: `translateX(${-cardShift * CARD_STEP}cqw)` }}>
+        <div class="track" style={{ transform: `translateX(calc(${-cardShift * CARD_STEP} * var(--u)))` }}>
           {history.length ? (
             history.map((v) => (
               <F key={v.id} id={'vid:' + v.id} class="card" onFocus={() => showVideo(v)} nav={{ up: 'hero:open' }}

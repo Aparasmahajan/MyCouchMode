@@ -17,6 +17,7 @@ interface TvState {
   sleep?: { mins: number; atEnd: boolean };
   apps?: { id: string; name: string; color: string; icon?: string; kids: boolean }[];
   away?: boolean;
+  awayMode?: 'pointer' | 'keys';
   ext?: boolean;
 }
 
@@ -162,10 +163,17 @@ function RemotePad({ tv, send, keyFn, kids }: { tv: TvState; send: (m: Msg) => v
   const sleepNow = tv.sleep?.atEnd ? 'end' : tv.sleep?.mins || 0;
   const [drag, setDrag] = useState<number | null>(null);
 
-  if (tv.away) return <AwayPad send={send} keyFn={keyFn} />;
+  if (tv.away && tv.awayMode !== 'keys') return <AwayPad send={send} keyFn={keyFn} />;
+  const ytTv = !!(tv.away && tv.awayMode === 'keys');
 
   return (
     <main class="pad-screen">
+      {ytTv && (
+        <div class="away-note row-note">
+          <span>Controlling <b>YouTube</b> on the TV. Type below to search it.</span>
+          <button class="btn sm" onClick={() => keyFn('home')}>Back to MCM</button>
+        </div>
+      )}
       {np && (
         <section class="now">
           <div class="now-head">
@@ -220,11 +228,11 @@ function RemotePad({ tv, send, keyFn, kids }: { tv: TvState; send: (m: Msg) => v
         <button onClick={() => keyFn('volup')}><Icon name="volup" />Vol +</button>
       </div>
 
-      <label class="type">
+      <form class="type" onSubmit={(e) => { e.preventDefault(); send({ t: 'submit' }); (document.activeElement as HTMLElement | null)?.blur(); }}>
         <Icon name="search" />
-        <input value={text} placeholder="Type to search on the TV" autocomplete="off" enterKeyHint="search"
+        <input value={text} placeholder={ytTv ? 'Search YouTube on the TV' : 'Type, then Go to search on the TV'} autocomplete="off" enterKeyHint="search"
           onInput={(e) => { const v = (e.target as HTMLInputElement).value; setText(v); send({ t: 'text', v }); }} />
-      </label>
+      </form>
 
       <h2 class="label">Open on TV</h2>
       <div class="quick">
@@ -253,10 +261,24 @@ function AwayPad({ send, keyFn }: { send: (m: Msg) => void; keyFn: (k: string) =
     acc.current = { dx: 0, dy: 0 };
   };
   const scrollStart = useRef<number | null>(null);
+  const [mouse, setMouse] = useState<boolean>(load('mcm.remote.mouse', true));
+  useEffect(() => save('mcm.remote.mouse', mouse), [mouse]);
 
   return (
     <main class="pad-screen">
-      <p class="away-note">A site is open on the TV. Drag to move the pointer, tap to click.</p>
+      <p class="away-note">A site is open on the TV. Your phone is its mouse: {mouse ? 'drag to move the pointer, tap to click.' : 'arrows move the pointer, OK clicks.'}</p>
+      <div class="seg" role="group" aria-label="Mouse style">
+        <button aria-pressed={mouse} onClick={() => setMouse(true)}>Trackpad</button>
+        <button aria-pressed={!mouse} onClick={() => setMouse(false)}>D-pad</button>
+      </div>
+      {!mouse ? (
+        <div class="dpad">
+          {(['up', 'down', 'left', 'right'] as const).map((d) => (
+            <button class={`d ${d}`} onClick={() => keyFn(d)} aria-label={d}><Icon name={d} /></button>
+          ))}
+          <button class="okb" onClick={() => send({ t: 'click' })}>Click</button>
+        </div>
+      ) : (
       <div class="trackpad-wrap">
         <div class="trackpad"
           onPointerDown={(e) => { last.current = { x: e.clientX, y: e.clientY, t: Date.now(), moved: 0 }; (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId); }}
@@ -281,6 +303,7 @@ function AwayPad({ send, keyFn }: { send: (m: Msg) => void; keyFn: (k: string) =
           <Icon name="up" /><span>Scroll</span><Icon name="down" />
         </div>
       </div>
+      )}
 
       <div class="btn-grid">
         <button onClick={() => keyFn('back')}><Icon name="back" />Back</button>

@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { youtubeConfig } from './_store.js';
 
 /**
  * GET /api/yt-search?q=...&safe=1
@@ -9,7 +10,8 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   const url = new URL(req.url || '/', 'http://localhost');
   const q = (url.searchParams.get('q') || '').trim().slice(0, 100);
   const safe = url.searchParams.get('safe') === '1';
-  const key = process.env.YOUTUBE_API_KEY;
+  // Key from the admin page (Google Sheet "Settings" tab), else YOUTUBE_API_KEY in Vercel.
+  const { key, region } = await youtubeConfig();
   res.setHeader('content-type', 'application/json; charset=utf-8');
 
   if (!key) return send(res, 503, { error: 'missing_key' });
@@ -24,6 +26,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     safeSearch: safe ? 'strict' : 'moderate',
     q,
     key,
+    ...(region ? { regionCode: region } : {}),
   }).toString();
 
   try {

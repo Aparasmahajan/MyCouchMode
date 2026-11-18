@@ -8,7 +8,7 @@ import { pad, textMode } from '../lib/input';
 import { AVATAR_COLORS, profiles, sfxOn, tvCode } from '../lib/store';
 import { ext } from '../lib/ext';
 import {
-  back, chooseProfile, frameApp, goHome, goRest, has, nowPlaying, pinEntry, pinError, pinFor,
+  back, chooseProfile, frameApp, goHome, goRest, has, openYouTube, nowPlaying, pinEntry, pinError, pinFor,
   setSleep, showToast, sleepAtEnd, sleepMins, typeChar,
 } from './state';
 import { Clock, glyphs } from './Chrome';
@@ -106,7 +106,7 @@ export function ControlCenter() {
   const phones = link?.phones.value || 0;
   const items: [string, string, string, () => void][] = [
     ['home', 'Home', 'cc:home', goHome],
-    ['search', 'Search', 'cc:search', () => { popLayer(); pushLayer('search'); }],
+    ['search', 'Search YouTube', 'cc:search', () => { popLayer(); openYouTube('#/search'); }],
     ['profile', 'Switch profile', 'cc:profile', () => resetLayers(['home', 'welcome'])],
     ['phone', 'Pair a phone', 'cc:pair', () => { popLayer(); pushLayer('pair'); }],
     ['full', document.fullscreenElement ? 'Exit full screen' : 'Full screen', 'cc:full', toggleFullscreen],
@@ -175,7 +175,7 @@ export function Frame() {
       <iframe src={app.url} title={app.name} allow="autoplay; fullscreen; encrypted-media; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" />
       <div class="frame-bar">
         <span class="ti" style={{ '--c': app.color } as any}><AppIcon app={app} /></span>
-        <span>{app.name} · use the mouse inside the page, or your phone remote. Back returns to MCM.</span>
+        <span>{app.name} · use a mouse here. Install the MCM Companion extension to use your phone or controller as the mouse. Back returns to MCM.</span>
         <span class="spacer" />
         <F id="frame:back" class="pill" isDefault onSelect={back}><Icon name="back" /> Back</F>
       </div>
