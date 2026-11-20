@@ -4,6 +4,7 @@ import { useState } from 'preact/hooks';
  *  Swap for each service's official icon files before a public launch. */
 const LOGO: Record<string, (c: string) => string> = {
   youtube: (c) => `<rect x="5" y="11" width="38" height="26" rx="8" fill="#fff"/><path d="M20.5 17.5v13l11-6.5z" fill="${c}"/>`,
+  utube: (c) => `<rect x="5" y="11" width="38" height="26" rx="8" fill="#fff"/><path d="M17 17.5v7.2a7 7 0 0 0 14 0v-7.2" fill="none" stroke="${c}" stroke-width="4.2" stroke-linecap="round"/>`,
   vzy: () => `<path d="M8 11h8.5L24 30.5 31.5 11H40L28.5 38h-9z" fill="#fff"/><circle cx="38" cy="36" r="3" fill="#fff" opacity=".7"/>`,
   hotstar: () => `<path d="M24 5c1.7 9.3 5.2 13.3 15 15-9.8 1.7-13.3 5.7-15 18-1.7-12.3-5.2-16.3-15-18 9.8-1.7 13.3-5.7 15-15z" fill="#fff"/><circle cx="37" cy="37" r="2.6" fill="#fff" opacity=".7"/>`,
   zee5: () => `<text x="24" y="29.5" text-anchor="middle" font-family="Sora, sans-serif" font-weight="700" font-size="14" fill="#fff" letter-spacing="-.5">ZEE5</text>`,

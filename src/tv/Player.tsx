@@ -6,7 +6,7 @@ import { activeId, getHistory, saveProgress, volume } from '../lib/store';
 import { loadYouTubeApi, recommended, thumbOf, type SearchItem } from '../lib/youtube';
 import { canInstall } from '../lib/install';
 import {
-  back, goRest, kidsMode, nowPlaying, player, playerMenu, playerOpts, playReq, playVideo, setSleep, showToast, sleepAtEnd, sleepMins, toggleAutoplay, toggleFill,
+  back, goRest, kidsMode, nowPlaying, upNextList, player, playerMenu, playerOpts, playReq, playVideo, setSleep, showToast, sleepAtEnd, sleepMins, toggleAutoplay, toggleFill,
 } from './state';
 
 const DEFAULT_RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
@@ -39,7 +39,7 @@ export function Player() {
   // Show controls on any input; hide after 3.5 s while playing (never while scrubbing or paused).
   useEffect(() => {
     setChrome(true);
-    if (!state.playing || scrub !== null) return;
+    if (!state.playing || scrub !== null || (focused.value || '').startsWith('shelf:')) return;
     const id = setTimeout(() => setChrome(false), 3500);
     return () => clearTimeout(id);
   }, [focused.value, lastSource.value, pokeN, state.playing, scrub !== null]);
@@ -109,6 +109,16 @@ export function Player() {
       setUpNext([...fromQueue, ...recs.filter((r) => !have.has(r.id))]);
     });
   }, [req?.id]);
+  const playFromShelf = (id: string) => {
+    const list = upNextRef.current;
+    const i = list.findIndex((x) => x.id === id);
+    if (i < 0) return;
+    setCountdown(null);
+    playVideo({ id, title: list[i].title, channel: list[i].channel, queue: [...list.slice(i + 1), ...list.slice(0, i)] });
+    setTimeout(() => setFocus('pl:play', true), 30);
+  };
+  useEffect(() => { upNextList.value = upNext.slice(0, 12); }, [upNext]);
+  useEffect(() => () => { upNextList.value = []; }, []);
   const playNext = () => {
     const [n, ...rest] = upNextRef.current;
     if (!n) return showToast('Nothing up next yet.');
@@ -180,6 +190,7 @@ export function Player() {
       seek: (d) => { const p = yt.current; if (!p) return; p.seekTo(Math.max(0, p.getCurrentTime() + d), true); poke(); },
       seekTo: (sec) => { const p = yt.current; if (!p) return; p.seekTo(Math.max(0, sec), true); poke(); },
       next: () => playNext(),
+      playId: (id: string) => playFromShelf(id),
       setVolume: (v) => { const p = yt.current; if (!p) return; v ? (p.unMute(), p.setVolume(v)) : p.mute(); },
       setRate: (r) => {
         const p = yt.current;
@@ -230,6 +241,7 @@ export function Player() {
     if (!chromeRef.current) {
       if (a === 'left' || a === 'right') { api?.seek(a === 'left' ? -10 : 10); showSeek(a === 'left' ? -10 : 10); return true; }
       if (a === 'ok') { api?.toggle(); return true; }
+      if (a === 'down' && upNextRef.current[0]) { poke(); setTimeout(() => setFocus('shelf:' + upNextRef.current[0].id, true), 30); return true; }
       if (a === 'up' || a === 'down') { poke(); return true; }
     }
     if (focused.value === 'pl:bar' && (a === 'left' || a === 'right')) { api?.seek(a === 'left' ? -10 : 10); showSeek(a === 'left' ? -10 : 10); return true; }
@@ -276,7 +288,10 @@ export function Player() {
   const api = () => player.api;
   const openMenu = (m: 'speed' | 'sleep') => { playerMenu.value = m; pushLayer('pmenu'); };
   const sleepLabel = sleepAtEnd.value ? 'End of video' : sleepMins.value ? `${sleepMins.value} min` : 'Off';
-  const up = { up: 'pl:bar' };
+  const firstShelf = () => (upNext[0] ? 'shelf:' + upNext[0].id : null);
+  const up = { up: 'pl:bar', down: firstShelf };
+  const focusedShelf = (focused.value || '').startsWith('shelf:');
+  const shelfIdx = Math.max(0, upNext.findIndex((v) => 'shelf:' + v.id === focused.value));
 
   return (
     <section class={`layer player${chrome ? '' : ' hide-chrome'}`} data-layer="player">
@@ -330,7 +345,21 @@ export function Player() {
           <F id="pl:close" class="ctrl" nav={up} onSelect={back} aria-label="Close player"><Icon name="close" /></F>
           <span class="time">{fmt(shown)} / {fmt(state.dur)}</span>
         </div>
-        <p class="pl-tip">Tilt the right stick to scrub · ← → skip 10 s when controls are hidden</p>
+        <p class="pl-tip">{upNext.length ? '↓ Up next · ' : ''}Tilt the right stick to scrub · ← → skip 10 s when controls are hidden</p>
+        {upNext.length > 0 && (
+          <div class={`shelf${focusedShelf ? ' open' : ''}`} aria-label="Up next">
+            <h4>Up next</h4>
+            <div class="shelf-track" style={{ transform: `translateX(calc(${-Math.max(0, Math.min(shelfIdx - 1, upNext.length - 5)) * 18.4} * var(--u)))` }}>
+              {upNext.slice(0, 15).map((v) => (
+                <F key={v.id} id={'shelf:' + v.id} class="shelf-card" nav={{ up: 'pl:play' }} onSelect={() => playFromShelf(v.id)} aria-label={v.title}>
+                  <span class="sc-thumb"><img src={v.thumb} alt="" loading="lazy" /></span>
+                  <span class="sc-t">{v.title}</span>
+                  <span class="sc-c">{v.channel}</span>
+                </F>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );

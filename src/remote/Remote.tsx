@@ -14,6 +14,7 @@ interface TvState {
   pinFor: string | null;
   now: { id: string; title: string; channel?: string; pos: number; dur: number; playing: boolean; muted?: boolean } | null;
   opts?: { rate: number; loop: boolean; captions: boolean };
+  upNext?: { id: string; title: string; channel: string; thumb: string }[];
   sleep?: { mins: number; atEnd: boolean };
   apps?: { id: string; name: string; color: string; icon?: string; kids: boolean }[];
   away?: boolean;
@@ -200,6 +201,19 @@ function RemotePad({ tv, send, keyFn, kids }: { tv: TvState; send: (m: Msg) => v
             <span class="chips-label"><Icon name="speed" /></span>
             {SPEEDS.map((r) => <button class={opts.rate === r ? 'on' : ''} onClick={() => send({ t: 'rate', r })}>{r}×</button>)}
           </div>
+          {tv.upNext && tv.upNext.length > 0 && (
+            <div class="upnext-strip" aria-label="Up next">
+              <span class="chips-label small">Up next</span>
+              <div class="un-row">
+                {tv.upNext.map((v) => (
+                  <button onClick={() => send({ t: 'playId', id: v.id })} aria-label={`Play ${v.title}`}>
+                    <img src={v.thumb} alt="" loading="lazy" />
+                    <span>{v.title}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div class="chips" role="group" aria-label="Sleep timer">
             <span class="chips-label"><Icon name="timer" /></span>
             {SLEEPS.map(([label, v]) => <button class={sleepNow === v ? 'on' : ''} onClick={() => send({ t: 'sleep', v })}>{label}</button>)}

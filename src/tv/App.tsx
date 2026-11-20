@@ -12,7 +12,7 @@ import { parseYouTubeId } from '../lib/youtube';
 import { sfx } from '../lib/sfx';
 import {
   activate, back, changeVolume, goHome, goRest, has, launchApp, nowPlaying, pinFor, player, playerOpts,
-  openYouTube, query, resting, searchSubmit, setSleep, setText, showToast, sleepAtEnd, sleepMins, tint, typeChar,
+  openSearch, playYouTubeLink, query, resting, upNextList, searchSubmit, setSleep, setText, showToast, sleepAtEnd, sleepMins, tint, typeChar,
 } from './state';
 import { Home } from './Home';
 import { Search } from './Search';
@@ -39,7 +39,7 @@ function onAction(a: Action) {
       if (!activeId.value) return;
       return topLayer() === 'cc' ? popLayer() : pushLayer('cc');
     case 'search':
-      if (activeId.value && topLayer() !== 'search') openYouTube('#/search');
+      if (activeId.value && topLayer() !== 'search') openSearch();
       return;
     case 'playpause': return player.api?.toggle();
     case 'volup': return changeVolume(5);
@@ -75,7 +75,7 @@ function onPhone(m: Msg, reply: (r: Msg) => void) {
       const id = parseYouTubeId(String(m.url || ''));
       if (!id) return reply({ t: 'error', msg: 'That does not look like a YouTube link.' });
       if (!activeId.value) return reply({ t: 'error', msg: 'Pick a profile on the TV first.' });
-      openYouTube(`#/watch?v=${id}`);
+      playYouTubeLink(id);
       return reply({ t: 'ok', msg: 'Playing on the TV.' });
     }
     case 'profile': {
@@ -115,6 +115,8 @@ function onPhone(m: Msg, reply: (r: Msg) => void) {
     }
     case 'next':
       return player.api?.next();
+    case 'playId':
+      return player.api?.playId(String(m.id || ''));
     case 'submit':
       return void searchSubmit.value++;
     case 'closeApp':
@@ -134,6 +136,7 @@ function stateMsg(): Msg {
     query: query.value,
     pinFor: topLayer() === 'pin' ? pinFor.value : null,
     now: nowPlaying.value,
+    upNext: nowPlaying.value ? upNextList.value : [],
     opts: playerOpts.value,
     sleep: { mins: sleepMins.value, atEnd: sleepAtEnd.value },
     apps: visibleSites().map((a) => ({ id: a.id, name: a.name, color: a.color, icon: a.icon, kids: !!a.kids })),

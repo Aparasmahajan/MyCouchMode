@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { F, focused, setFocus, useLayerKeys } from '../lib/nav';
 import { textMode } from '../lib/input';
+import { AppIcon } from '../lib/logos';
 import { parseYouTubeId, recommended, searchYouTube, thumbOf, type SearchItem } from '../lib/youtube';
 import { activeId, getHistory } from '../lib/store';
 import { kidsMode, playVideo, query, searchSubmit, typeChar } from './state';
@@ -61,8 +62,9 @@ export function Search() {
   return (
     <section class="layer search" data-layer="search">
       <div class="search-left">
+        <div class="ut-brand"><span class="ut-mark"><AppIcon app={{ id: 'utube', name: 'uTube', color: '#ff3d6e' }} /></span><b>uTube</b></div>
         <F id="q:box" class="query" isDefault onSelect={submit} aria-label="Search box. Type, then press Enter.">
-          {query.value ? <>{query.value}<span class="caret" /></> : <span class="ph">Type, then press Enter to search YouTube</span>}
+          {query.value ? <>{query.value}<span class="caret" /></> : <span class="ph">Search uTube: type, then press Enter</span>}
         </F>
         <div class="osk">
           {KEYS.map((k) => (

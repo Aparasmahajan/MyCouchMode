@@ -3,13 +3,13 @@ import { useEffect, useState } from 'preact/hooks';
 import { renderSVG } from 'uqr';
 import { F, popLayer, pushLayer, resetLayers } from '../lib/nav';
 import { AppIcon, Icon } from '../lib/logos';
-import { appById } from '../lib/apps';
+import { appById, utubeLocal } from '../lib/apps';
 import { pad, textMode } from '../lib/input';
 import { AVATAR_COLORS, profiles, sfxOn, tvCode } from '../lib/store';
 import { ext } from '../lib/ext';
 import { canInstall, installed, promptInstall } from '../lib/install';
 import {
-  back, chooseProfile, frameApp, goHome, goRest, has, openTab, openYouTube, nowPlaying, pinEntry, pinError, pinFor,
+  back, chooseProfile, frameApp, goHome, goRest, has, openSearch, openTab, nowPlaying, pinEntry, pinError, pinFor,
   setSleep, showToast, sleepAtEnd, sleepMins, typeChar,
 } from './state';
 import { Clock, glyphs } from './Chrome';
@@ -107,7 +107,11 @@ export function ControlCenter() {
   const phones = link?.phones.value || 0;
   const items: [string, string, string, () => void][] = [
     ['home', 'Home', 'cc:home', goHome],
-    ['search', 'Search YouTube', 'cc:search', () => { popLayer(); openYouTube('#/search'); }],
+    ['search', 'Search', 'cc:search', () => { popLayer(); openSearch(); }],
+    ['play', `uTube: ${utubeLocal.value ? 'On' : 'Off'} (MCM’s own YouTube on this TV)`, 'cc:utube', () => {
+      utubeLocal.value = !utubeLocal.value;
+      showToast(utubeLocal.value ? 'uTube is on: search and phone links play in MCM’s own YouTube.' : 'uTube is off on this TV: YouTube uses YouTube’s TV app.', 'utube');
+    }],
     ['profile', 'Switch profile', 'cc:profile', () => resetLayers(['home', 'welcome'])],
     ['phone', 'Pair a phone', 'cc:pair', () => { popLayer(); pushLayer('pair'); }],
     ['full', document.fullscreenElement ? 'Exit full screen' : 'Full screen', 'cc:full', toggleFullscreen],
@@ -230,7 +234,7 @@ export function YouTubeSetup() {
         <div class="ys-actions">
           <F id="ys:install" class="pill primary" isDefault onSelect={() => setSteps(true)}>Set up YouTube TV</F>
           <F id="ys:tab" class="pill" onSelect={() => { back(); openTab('https://www.youtube.com', 'YouTube', 'youtube'); }}>Open regular YouTube</F>
-          <F id="ys:quick" class="pill" onSelect={() => { back(); pushLayer('search'); }}>Quick search here</F>
+          <F id="ys:quick" class="pill" onSelect={() => { back(); utubeLocal.value = true; pushLayer('search'); }}>Use uTube instead</F>
         </div>
         {steps && (
           <div class="ys-steps">

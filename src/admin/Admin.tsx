@@ -1,6 +1,6 @@
 import '../styles/admin.css';
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { DEFAULT_APPS, LOCAL_KEY, MODE_LABEL, announceSiteChange, normalize, type AppDef, type AppMode } from '../lib/apps';
+import { DEFAULT_APPS, LOCAL_KEY, MODE_LABEL, announceSiteChange, normalize, withBuiltIns, type AppDef, type AppMode } from '../lib/apps';
 import { AppIcon, Icon } from '../lib/logos';
 import { load, save } from '../lib/shared';
 
@@ -103,10 +103,10 @@ function Sites({ storage, ytKey }: { storage: Storage; ytKey: boolean | null }) 
 
   useEffect(() => {
     (async () => {
-      if (storage === 'local') return setList(normalize(load(LOCAL_KEY, null)) || DEFAULT_APPS);
+      if (storage === 'local') return setList(withBuiltIns(normalize(load(LOCAL_KEY, null))) || DEFAULT_APPS);
       try {
         const d = await (await fetch(`/api/sites?t=${Date.now()}`, { cache: 'no-store' })).json();
-        setList(normalize(d.sites) || DEFAULT_APPS);
+        setList(withBuiltIns(normalize(d.sites)) || DEFAULT_APPS);
       } catch { setList(DEFAULT_APPS); }
     })();
   }, [storage]);
@@ -206,7 +206,7 @@ function Sites({ storage, ytKey }: { storage: Storage; ytKey: boolean | null }) 
                 <span class="tile" style={{ '--c': s.color } as any}><AppIcon app={s} /></span>
                 <div class="meta">
                   <b>{s.name}</b>
-                  <span class="url">{s.mode === 'youtube' ? 'Built-in YouTube player' : s.url}</span>
+                  <span class="url">{s.mode === 'youtube' ? 'YouTube’s TV app (needs the Companion extension)' : s.mode === 'utube' ? 'MCM’s own YouTube (built in)' : s.url}</span>
                   <span class="tags">
                     <span class={`tag ${MODE_LABEL[s.mode][0]}`}>{MODE_LABEL[s.mode][1]}</span>
                     {s.kids && <span class="tag">Kids</span>}
@@ -216,7 +216,7 @@ function Sites({ storage, ytKey }: { storage: Storage; ytKey: boolean | null }) 
                 <div class="actions">
                   <button class="btn sm" onClick={() => setEditing(s.id)}>Edit</button>
                   <button class="btn sm" onClick={() => update(list.map((x) => (x.id === s.id ? { ...x, hidden: !x.hidden } : x)))}>{s.hidden ? 'Show' : 'Hide'}</button>
-                  {s.mode !== 'youtube' && (confirmDel === s.id
+                  {s.mode !== 'youtube' && s.mode !== 'utube' && (confirmDel === s.id
                     ? <button class="btn sm danger" onClick={() => { update(list.filter((x) => x.id !== s.id)); setConfirmDel(null); }}>Confirm delete</button>
                     : <button class="btn sm ghost" onClick={() => setConfirmDel(s.id)}>Delete</button>)}
                 </div>
@@ -313,7 +313,7 @@ function SiteForm({ initial, ids, onSave, onCancel }: { initial?: AppDef; ids: s
   const [check, setCheck] = useState<Check | null>(null);
   const [checking, setChecking] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const isYouTube = s.mode === 'youtube';
+  const isYouTube = s.mode === 'youtube' || s.mode === 'utube';
   const set = (patch: Partial<AppDef>) => setS({ ...s, ...patch });
 
   async function runCheck() {
