@@ -15,7 +15,9 @@
 
   const start = () => {
     const isMcm = !!document.querySelector('meta[name="mcm-app"]');
+    const isYouTubeTv = location.hostname === 'www.youtube.com' && location.pathname.startsWith('/tv');
     if (isMcm) { if (!/^\/(remote|admin)/.test(location.pathname)) bridge(); }
+    else if (isYouTubeTv) youTubeTv();
     else companion();
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
@@ -38,6 +40,75 @@
       });
     });
     chrome.runtime.onMessage.addListener((m) => post(m));
+  }
+
+  /* ================= YouTube's TV app (youtube.com/tv) =================
+   * Here the controller and phone act like a TV remote (arrow keys, OK, Back),
+   * because the TV app is built for that instead of a mouse. */
+  function youTubeTv() {
+    chrome.runtime.sendMessage({ type: 'yttv-tab' }, () => void chrome.runtime.lastError);
+    const KEYS = { up: [38, 'ArrowUp'], down: [40, 'ArrowDown'], left: [37, 'ArrowLeft'], right: [39, 'ArrowRight'], ok: [13, 'Enter'], back: [27, 'Escape'] };
+    const press = (k) => { const [code, key] = KEYS[k]; window.postMessage({ source: 'mcm-key', code, key }, '*'); };
+    const video = () => document.querySelector('video');
+    const media = {
+      toggle() { const v = video(); if (!v) return press('ok'); v.paused ? v.play().catch(() => {}) : v.pause(); },
+      seek(d) { const v = video(); if (v) v.currentTime = Math.max(0, v.currentTime + d); },
+      volume(d) { const v = video(); if (!v) return; v.muted = false; v.volume = Math.max(0, Math.min(1, v.volume + d)); },
+      mute() { const v = video(); if (v) v.muted = !v.muted; },
+    };
+    const home = () => chrome.runtime.sendMessage({ type: 'home' }, () => void chrome.runtime.lastError);
+    let searchTimer = 0;
+
+    chrome.runtime.onMessage.addListener((m) => {
+      if (!m || !m.t) return;
+      if (m.t === 'key') {
+        if (KEYS[m.k]) return press(m.k);
+        if (m.k === 'playpause') return media.toggle();
+        if (m.k === 'volup') return media.volume(0.1);
+        if (m.k === 'voldown') return media.volume(-0.1);
+        if (m.k === 'mute') return media.mute();
+        return;
+      }
+      if (m.t === 'click' || m.t === 'enter') return press('ok');
+      if (m.t === 'seek') return media.seek(Number(m.d) || 0);
+      if (m.t === 'text') {
+        // Typing on the phone opens YouTube's search with those words.
+        clearTimeout(searchTimer);
+        const q = String(m.v || '').trim();
+        searchTimer = setTimeout(() => { location.hash = q ? `#/search?q=${encodeURIComponent(q)}` : '#/search'; }, 700);
+      }
+    });
+
+    // Controller: D-pad / left stick = arrows (repeating while held), ✕ OK, ○ Back, □ play/pause,
+    // L1/R1 −/+10 s, L2/R2 volume, PS back to MCM.
+    chrome.storage.local.get('yttvPad').then(({ yttvPad }) => {
+      if (yttvPad === false) return; // turned off in the popup (if the TV app already reads the controller)
+      const held = {};
+      const prev = {};
+      let psDown = 0;
+      const BTN = { 0: () => press('ok'), 1: () => press('back'), 2: media.toggle, 4: () => media.seek(-10), 5: () => media.seek(10), 6: () => media.volume(-0.1), 7: () => media.volume(0.1) };
+      const loop = (now) => {
+        let gp = null;
+        try { gp = [...(navigator.getGamepads ? navigator.getGamepads() : [])].find(Boolean) || null; } catch { /* blocked */ }
+        if (gp && document.hasFocus()) {
+          const b = (i) => !!(gp.buttons[i] && gp.buttons[i].pressed);
+          const ax = gp.axes || [];
+          const dirs = { up: b(12) || ax[1] < -0.55, down: b(13) || ax[1] > 0.55, left: b(14) || ax[0] < -0.55, right: b(15) || ax[0] > 0.55 };
+          for (const d in dirs) {
+            if (dirs[d]) {
+              if (held[d] === undefined) { held[d] = now + 380; press(d); }
+              else if (now >= held[d]) { held[d] = now + 120; press(d); }
+            } else delete held[d];
+          }
+          for (const k in BTN) { const p = b(+k); if (p && !prev[k]) BTN[k](); prev[k] = p; }
+          const ps = b(16);
+          if (ps && !psDown) psDown = now;
+          if (!ps && psDown) { psDown = 0; home(); }
+        }
+        requestAnimationFrame(loop);
+      };
+      requestAnimationFrame(loop);
+    });
   }
 
   /* ================= companion (on every other site) ================= */

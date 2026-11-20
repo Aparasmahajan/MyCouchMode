@@ -4,7 +4,7 @@ import { DEFAULT_APPS, LOCAL_KEY, MODE_LABEL, announceSiteChange, normalize, typ
 import { AppIcon, Icon } from '../lib/logos';
 import { load, save } from '../lib/shared';
 
-type Storage = 'kv' | 'none' | 'local';
+type Storage = 'sheets' | 'kv' | 'none' | 'local';
 const PW_KEY = 'mcm.admin.pw';
 
 const pwGet = () => { try { return sessionStorage.getItem(PW_KEY) || ''; } catch { return ''; } };
@@ -14,6 +14,7 @@ export function AdminApp() {
   const [phase, setPhase] = useState<'login' | 'setup' | 'ready'>('login');
   const [storage, setStorage] = useState<Storage>('none');
   const [ytKey, setYtKey] = useState<boolean | null>(null);
+  const [view, setView] = useState<'sites' | 'youtube'>('sites');
 
   // Re-use the password from this browser tab if there is one.
   // (With no saved password this still asks the server, so an unconfigured server goes straight to setup.)
@@ -23,7 +24,7 @@ export function AdminApp() {
     try {
       const r = await fetch('/api/admin', { method: 'POST', headers: { 'x-admin-password': pw } });
       const d = await r.json().catch(() => ({}));
-      if (r.ok) { pwSet(pw); setStorage(d.storage === 'kv' ? 'kv' : 'local'); setYtKey(!!d.youtube); setPhase('ready'); return null; }
+      if (r.ok) { pwSet(pw); setStorage(d.storage === 'sheets' || d.storage === 'kv' ? d.storage : 'local'); setYtKey(!!d.youtube); setPhase('ready'); return null; }
       if (d.error === 'admin_not_configured') { setPhase('setup'); return null; }
       pwSet('');
       return silent ? null : 'Wrong password. Try again.';
@@ -42,7 +43,15 @@ export function AdminApp() {
       </header>
       {phase === 'login' && <Login onSubmit={signIn} />}
       {phase === 'setup' && <Setup onLocal={() => { setStorage('local'); setPhase('ready'); }} />}
-      {phase === 'ready' && <Sites storage={storage} ytKey={ytKey} />}
+      {phase === 'ready' && (
+        <>
+          <nav class="a-tabs" role="tablist">
+            <button role="tab" aria-selected={view === 'sites'} onClick={() => setView('sites')}>Sites</button>
+            <button role="tab" aria-selected={view === 'youtube'} onClick={() => setView('youtube')}>YouTube</button>
+          </nav>
+          {view === 'sites' ? <Sites storage={storage} ytKey={ytKey} /> : <YouTubeSettings storage={storage} onChange={setYtKey} />}
+        </>
+      )}
       <footer class="a-foot">MCM · My Couch Mode · by Paras Mahajan</footer>
     </div>
   );
@@ -73,7 +82,7 @@ function Setup({ onLocal }: { onLocal: () => void }) {
       <p>No admin password is set on the server yet. To manage sites for every TV:</p>
       <ol class="steps">
         <li>In Vercel, open your project → <b>Settings → Environment Variables</b> and add <code>ADMIN_PASSWORD</code>.</li>
-        <li>Open <b>Storage</b> → <b>Create Database</b> → <b>Upstash for Redis</b> (free) → connect it to this project. Vercel adds the keys for you.</li>
+        <li>Connect storage: either a <b>Google Sheet</b> (add <code>GOOGLE_SHEET_ID</code>, <code>GOOGLE_SA_EMAIL</code>, <code>GOOGLE_SA_KEY</code>; see the README), or <b>Storage → Upstash for Redis</b> in Vercel.</li>
         <li>Redeploy, then reload this page.</li>
       </ol>
       <p class="muted">Or edit sites for this browser only. Useful for trying things out, or when the TV runs in this same browser.</p>
@@ -96,7 +105,7 @@ function Sites({ storage, ytKey }: { storage: Storage; ytKey: boolean | null }) 
     (async () => {
       if (storage === 'local') return setList(normalize(load(LOCAL_KEY, null)) || DEFAULT_APPS);
       try {
-        const d = await (await fetch('/api/sites', { cache: 'no-store' })).json();
+        const d = await (await fetch(`/api/sites?t=${Date.now()}`, { cache: 'no-store' })).json();
         setList(normalize(d.sites) || DEFAULT_APPS);
       } catch { setList(DEFAULT_APPS); }
     })();
@@ -127,12 +136,12 @@ function Sites({ storage, ytKey }: { storage: Storage; ytKey: boolean | null }) 
       } else {
         const r = await fetch('/api/sites', { method: 'PUT', headers: { 'content-type': 'application/json', 'x-admin-password': pwGet() }, body: JSON.stringify({ sites: list }) });
         const d = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(d.error === 'storage_not_configured' ? 'Storage is not connected in Vercel yet (Upstash for Redis).' : d.error === 'wrong_password' ? 'Your session expired. Sign in again.' : d.detail || d.error || 'Save failed.');
+        if (!r.ok) throw new Error(d.error === 'storage_not_configured' ? 'Storage is not connected in Vercel yet (Google Sheet or Upstash).' : d.error === 'wrong_password' ? 'Your session expired. Sign in again.' : d.detail || d.error || 'Save failed.');
         try { localStorage.removeItem(LOCAL_KEY); } catch { /* ignore */ }
       }
       announceSiteChange();
       setDirty(false);
-      setMsg({ text: storage === 'local' ? 'Saved on this device.' : 'Saved. TVs pick up the change the next time they open or wake.' });
+      setMsg({ text: storage === 'local' ? 'Saved on this device.' : storage === 'sheets' ? 'Saved to the Google Sheet ("Sites" tab). TVs pick it up within a minute of opening or waking.' : 'Saved. TVs pick up the change the next time they open or wake.' });
     } catch (e: any) {
       setMsg({ text: e.message || String(e), bad: true });
     }
@@ -162,10 +171,10 @@ function Sites({ storage, ytKey }: { storage: Storage; ytKey: boolean | null }) 
   return (
     <main class="sites">
       <section class="bar">
-        <span class={`pill-badge ${storage === 'kv' ? 'ok' : 'warn'}`}>
-          {storage === 'kv' ? 'Saved for every TV' : 'This device only'}
+        <span class={`pill-badge ${storage === 'sheets' || storage === 'kv' ? 'ok' : 'warn'}`}>
+          {storage === 'sheets' ? 'Google Sheet · every TV' : storage === 'kv' ? 'Upstash · every TV' : 'This device only'}
         </span>
-        {ytKey === false && <span class="pill-badge warn">YouTube search off: add YOUTUBE_API_KEY</span>}
+        {ytKey === false && <span class="pill-badge warn">YouTube search is off: add a key in the YouTube tab</span>}
         <span class="spacer" />
         <button class="btn ghost" onClick={exportJson}>Export</button>
         <button class="btn ghost" onClick={() => fileRef.current?.click()}>Import</button>
@@ -216,6 +225,82 @@ function Sites({ storage, ytKey }: { storage: Storage; ytKey: boolean | null }) 
           </li>
         ))}
       </ul>
+    </main>
+  );
+}
+
+/* ---------- YouTube API key + region (stored server-side, never sent to TVs) ---------- */
+interface YtStatus { source: 'admin' | 'env' | 'none'; keyHint: string; region: string; envKey: boolean }
+
+function YouTubeSettings({ storage, onChange }: { storage: Storage; onChange: (on: boolean) => void }) {
+  const [st, setSt] = useState<YtStatus | null>(null);
+  const [key, setKey] = useState('');
+  const [region, setRegion] = useState('');
+  const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
+  const [busy, setBusy] = useState<'' | 'save' | 'test' | 'remove'>('');
+  const canSave = storage === 'sheets' || storage === 'kv';
+
+  async function load() {
+    try {
+      const r = await fetch('/api/settings', { headers: { 'x-admin-password': pwGet() } });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.detail || (d.error === 'admin_not_configured' ? 'Set ADMIN_PASSWORD in Vercel to manage settings here.' : d.error || 'Could not load settings.'));
+      setSt(d.youtube); setRegion(d.youtube.region || '');
+      onChange(d.youtube.source !== 'none');
+    } catch (e: any) { setMsg({ text: e.message, bad: true }); }
+  }
+  useEffect(() => { load(); }, []);
+
+  async function save(remove = false) {
+    setBusy(remove ? 'remove' : 'save'); setMsg(null);
+    try {
+      const body: Record<string, string> = { youtubeRegion: region };
+      if (remove) body.youtubeKey = '';
+      else if (key.trim()) body.youtubeKey = key.trim();
+      const r = await fetch('/api/settings', { method: 'PUT', headers: { 'content-type': 'application/json', 'x-admin-password': pwGet() }, body: JSON.stringify(body) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.detail || (d.error === 'storage_not_configured' ? 'Connect a Google Sheet or Upstash first; settings are stored there.' : d.error || 'Save failed.'));
+      setKey('');
+      setMsg({ text: remove ? 'Saved key removed.' : storage === 'sheets' ? 'Saved to the Google Sheet ("Settings" tab). Search uses it within 5 minutes.' : 'Saved. Search uses it within 5 minutes.' });
+      await load();
+    } catch (e: any) { setMsg({ text: e.message, bad: true }); }
+    setBusy('');
+  }
+
+  async function test() {
+    setBusy('test'); setMsg(null);
+    try {
+      const r = await fetch(`/api/yt-search?q=${encodeURIComponent('lofi music')}&t=${Date.now()}`);
+      const d = await r.json().catch(() => ({}));
+      if (r.status === 503) throw new Error('No key is set yet, so search is off.');
+      if (!r.ok) throw new Error(`YouTube said: ${d.detail || d.error}. Check that "YouTube Data API v3" is enabled for this key and that the key is not restricted to websites.`);
+      setMsg({ text: `Search works: ${d.items.length} results, for example “${d.items[0]?.title || '…'}”.` });
+    } catch (e: any) { setMsg({ text: e.message, bad: true }); }
+    setBusy('');
+  }
+
+  return (
+    <main class="card yt-settings">
+      <h1>YouTube search</h1>
+      <p class="muted">The key stays on the server{storage === 'sheets' ? ' (in the private "Settings" tab of your Google Sheet)' : ''}. TVs and phones never see it. Search costs 100 of the 10,000 free daily units, so about 100 searches a day.</p>
+      {st && (
+        <p class={`banner${st.source === 'none' ? ' warn' : ''}`}>
+          {st.source === 'admin' ? `Using the key saved here (${st.keyHint}).` : st.source === 'env' ? `Using YOUTUBE_API_KEY from Vercel (${st.keyHint}). A key saved here takes priority.` : 'No key yet, so YouTube search is off. Links sent from the phone still play.'}
+        </p>
+      )}
+      {!canSave && <p class="banner warn">Settings are stored in your Google Sheet or Upstash, and neither is connected yet. Until then, set YOUTUBE_API_KEY in Vercel.</p>}
+      <form onSubmit={(e) => { e.preventDefault(); save(); }}>
+        <label for="ytk">API key</label>
+        <input id="ytk" type="password" autocomplete="off" spellcheck={false} placeholder={st?.keyHint ? `Leave empty to keep ${st.keyHint}` : 'AIza…'} value={key} onInput={(e) => setKey((e.target as HTMLInputElement).value)} disabled={!canSave} />
+        <label for="ytr">Search region (optional)</label>
+        <input id="ytr" maxLength={2} placeholder="IN" value={region} onInput={(e) => setRegion((e.target as HTMLInputElement).value.toUpperCase())} disabled={!canSave} />
+        <div class="form-actions">
+          {st?.source === 'admin' && <button type="button" class="btn ghost" disabled={!!busy} onClick={() => save(true)}>{busy === 'remove' ? 'Removing…' : 'Remove saved key'}</button>}
+          <button type="button" class="btn" disabled={!!busy} onClick={test}>{busy === 'test' ? 'Testing…' : 'Test search'}</button>
+          <button class="btn primary" disabled={!canSave || !!busy}>{busy === 'save' ? 'Saving…' : 'Save'}</button>
+        </div>
+      </form>
+      {msg && <p class={`banner${msg.bad ? ' bad' : ''}`} role="status">{msg.text}</p>}
     </main>
   );
 }

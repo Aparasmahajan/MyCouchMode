@@ -3,6 +3,7 @@
  * relays phone-remote commands to that app tab, and brings MCM back on Home. */
 
 const VERSION = chrome.runtime.getManifest().version;
+const TV_UA = 'Mozilla/5.0 (SMART-TV; LINUX; Tizen 6.0) AppleWebKit/537.36 (KHTML, like Gecko) 76.0.3809.146/6.0 TV Safari/537.36';
 
 // Service workers sleep; keep the tab ids in session storage.
 const get = () => chrome.storage.session.get(['mcmTab', 'appTab']);
@@ -52,6 +53,20 @@ async function handle(msg, sender) {
       return { ok: true, on: await adblockOn() };
     }
 
+    case 'yttv-tab': {
+      // Keep this tab looking like a TV for every YouTube request, not only the first page load.
+      const id = 100000 + tabId;
+      await chrome.declarativeNetRequest.updateSessionRules({
+        removeRuleIds: [id],
+        addRules: [{
+          id, priority: 2,
+          action: { type: 'modifyHeaders', requestHeaders: [{ header: 'user-agent', operation: 'set', value: TV_UA }] },
+          condition: { tabIds: [tabId], requestDomains: ['youtube.com'] },
+        }],
+      });
+      return { ok: true };
+    }
+
     case 'status':
       return { ok: true, version: VERSION, adblock: await adblockOn(), mcm: !!st.mcmTab, app: !!st.appTab };
   }
@@ -90,6 +105,7 @@ chrome.tabs.onActivated.addListener(async ({ tabId }) => {
 });
 
 chrome.tabs.onRemoved.addListener(async (tabId) => {
+  chrome.declarativeNetRequest.updateSessionRules({ removeRuleIds: [100000 + tabId] }).catch(() => {});
   const st = await get();
   if (tabId === st.appTab) { await set({ appTab: null }); tellMcm(st.mcmTab, { type: 'away', on: false }); }
   if (tabId === st.mcmTab) await set({ mcmTab: null });
