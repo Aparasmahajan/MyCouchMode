@@ -1,5 +1,5 @@
 import { signal } from '@preact/signals';
-import { appById } from '../lib/apps';
+import { appById, utubeOn } from '../lib/apps';
 import { activeId, activeProfile, hashPin, lastProfileId, load, profiles, save, volume } from '../lib/store';
 import { layers, popLayer, pushLayer, resetLayers, topLayer } from '../lib/nav';
 import { away, awayMode, ext, extSend } from '../lib/ext';
@@ -31,6 +31,8 @@ export const volHud = signal(0);
 
 export interface PlayReq { id: string; start?: number; title?: string; channel?: string; queue?: { id: string; title: string; channel: string; thumb: string }[] }
 export const playReq = signal<PlayReq | null>(null);
+/** What the player will play next (shown on the phone too). */
+export const upNextList = signal<{ id: string; title: string; channel: string; thumb: string }[]>([]);
 export const nowPlaying = signal<{ id: string; title: string; channel?: string; pos: number; dur: number; playing: boolean; muted?: boolean } | null>(null);
 
 /** Set by the Player while it is mounted. */
@@ -45,6 +47,7 @@ export interface PlayerApi {
   setLoop(on: boolean): void;
   setCaptions(on: boolean): void;
   next(): void;
+  playId(id: string): void;
 }
 /** Player options the TV and the phone both show. */
 export const playerOpts = signal({ rate: 1, loop: false, captions: false, fill: load<boolean>('mcm.fill', true), autoplay: load<boolean>('mcm.autoplay', true) });
@@ -81,6 +84,7 @@ export function launchApp(id: string) {
   const a = appById(id);
   if (!a) return;
   if (a.mode === 'youtube') return openYouTube();
+  if (a.mode === 'utube') return pushLayer('search');
   // With the Companion, every site opens in its own tab where the phone and controller work as a mouse.
   if (a.mode === 'frame' && ext.value) return openTab(a.url!, a.name, a.id);
   if (a.mode === 'frame') {
@@ -124,6 +128,18 @@ export function openYouTube(hash = '') {
   if (hash.startsWith('#/search')) return pushLayer('search');
   // The YouTube tile itself: explain the choices instead of silently opening search.
   pushLayer('ytsetup');
+}
+
+/** Search: uTube when it's on (or there is no extension), otherwise YouTube TV's search. */
+export function openSearch() {
+  if (utubeOn() || !ext.value) return pushLayer('search');
+  openTab('https://www.youtube.com/tv#/search', 'YouTube', 'youtube', 'keys');
+}
+
+/** A YouTube link from the phone: plays in uTube when it's on, otherwise in YouTube TV. */
+export function playYouTubeLink(id: string) {
+  if (utubeOn() || !ext.value) return playVideo({ id });
+  openTab(`https://www.youtube.com/tv#/watch?v=${id}`, 'YouTube', 'youtube', 'keys');
 }
 
 /** Bumped to run a search (Enter on the query box, the Search key, or the phone keyboard's Go). */
@@ -197,7 +213,7 @@ export function setText(v: string) {
     return;
   }
   if (!activeId.value) return;
-  if (ext.value) return; // YouTube TV handles typing itself (the phone's text goes to its search)
+  if (ext.value && !utubeOn()) return; // YouTube TV handles typing itself (the phone's text goes to its search)
   if (topLayer() !== 'search') pushLayer('search');
   query.value = v.slice(0, 80);
 }

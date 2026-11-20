@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'preact/hooks';
 import { recommended, type SearchItem } from '../lib/youtube';
-import { MODE_LABEL, visibleSites, type AppDef } from '../lib/apps';
+import { MODE_LABEL, utubeOn, visibleSites, type AppDef } from '../lib/apps';
 import { AppIcon, Icon } from '../lib/logos';
 import { F, focused, pushLayer } from '../lib/nav';
 import { pad } from '../lib/input';
 import { AVATAR_COLORS, activeProfile, getHistory, type WatchItem } from '../lib/store';
-import { art, entered, launchApp, openYouTube, playVideo, tint } from './state';
+import { art, entered, launchApp, openSearch, playVideo, tint } from './state';
 import { Clock } from './Chrome';
 import { link } from './App';
 
@@ -20,10 +20,11 @@ export function Home() {
   const watched = prof ? getHistory(prof.id).slice(0, 8) : [];
   // Recommended for you: more from the channels you watch, then trending (built-in YouTube).
   const [recs, setRecs] = useState<SearchItem[]>([]);
+  const showRow = utubeOn(); // this row is uTube's: hidden when uTube is switched off
   useEffect(() => {
-    if (!prof) return;
+    if (!prof || !showRow) return;
     recommended(watched.map((w) => w.id), prof.kids, 10).then(setRecs);
-  }, [prof?.id, watched[0]?.id]);
+  }, [prof?.id, watched[0]?.id, showRow]);
   const seenIds = new Set(watched.map((w) => w.id));
   const history = [
     ...watched,
@@ -55,7 +56,7 @@ export function Home() {
   const queueAfter = (id: string) => history.slice(history.findIndex((h) => h.id === id) + 1).map((h) => ({ id: h.id, title: h.title, channel: h.channel || '', thumb: h.thumb }));
   const openHero = () => (hero.kind === 'app' ? launchApp(hero.app.id) : playVideo({ id: hero.item.id, start: hero.item.pos, title: hero.item.title, channel: hero.item.channel, queue: queueAfter(hero.item.id) }));
   const toTiles = () => lastTile;
-  const toCards = () => lastCard || (history[0] ? 'vid:' + history[0].id : null);
+  const toCards = () => (!showRow ? null : lastCard || (history[0] ? 'vid:' + history[0].id : null));
   const phones = link?.phones.value || 0;
 
   return (
@@ -66,7 +67,7 @@ export function Home() {
         <span class="spacer" />
         <span class="mini" title="Controller"><Icon name="pad" /><span class={`dot${pad.value.connected ? '' : ' off'}`} /></span>
         <span class="mini" title="Phone remotes"><Icon name="phone" /><span class={`dot${phones ? '' : ' off'}`} />{phones > 1 ? phones : ''}</span>
-        <F id="top:search" class="icon-btn" onSelect={() => openYouTube('#/search')} aria-label="Search"><Icon name="search" /></F>
+        <F id="top:search" class="icon-btn" onSelect={() => openSearch()} aria-label="Search"><Icon name="search" /></F>
         <F id="top:cc" class="icon-btn" onSelect={() => pushLayer('cc')} aria-label="Control center"><Icon name="gear" /></F>
         <F id="top:profile" class="avatar" style={{ background: AVATAR_COLORS[prof?.color ?? 0] }} onSelect={() => pushLayer('welcome')} aria-label="Switch profile">
           {prof?.name[0] || '?'}
@@ -109,12 +110,12 @@ export function Home() {
           <F id="hero:open" class="pill primary" onSelect={openHero} nav={{ up: toTiles, down: toCards }}>
             {hero.kind === 'video' ? (hero.item.dur ? 'Resume' : 'Play') : hero.app.mode === 'tab' ? 'Open in new tab' : 'Open'}
           </F>
-          <F id="hero:search" class="pill round" onSelect={() => openYouTube('#/search')} nav={{ up: toTiles, down: toCards }} aria-label="Search"><Icon name="search" /></F>
+          <F id="hero:search" class="pill round" onSelect={() => openSearch()} nav={{ up: toTiles, down: toCards }} aria-label="Search"><Icon name="search" /></F>
         </div>
       </div>
 
-      <div class="rail cont">
-        <h3>{watched.length && recs.length ? 'Continue watching · Recommended' : watched.length ? 'Continue watching' : 'Recommended for you'}</h3>
+      {showRow && <div class="rail cont">
+        <h3>{watched.length && recs.length ? 'uTube · Continue watching · Recommended' : watched.length ? 'uTube · Continue watching' : 'uTube · Recommended for you'}</h3>
         <div class="track" style={{ transform: `translateX(calc(${-cardShift * CARD_STEP} * var(--u)))` }}>
           {history.length ? (
             history.map((v) => (
@@ -127,11 +128,11 @@ export function Home() {
             ))
           ) : (
             <div class="card empty-card">
-              <span>Videos you watch on YouTube show up here, saved separately for each profile.</span>
+              <span>Videos you watch on uTube show up here, saved separately for each profile.</span>
             </div>
           )}
         </div>
-      </div>
+      </div>}
     </section>
   );
 }

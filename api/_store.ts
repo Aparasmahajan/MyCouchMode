@@ -12,7 +12,7 @@ export const storageKind = (): StorageKind => (sheetsReady() ? 'sheets' : kvRead
 
 /* ---------- sites ---------- */
 export interface Site {
-  id: string; name: string; url?: string; mode: 'youtube' | 'frame' | 'tab';
+  id: string; name: string; url?: string; mode: 'youtube' | 'utube' | 'frame' | 'tab';
   color: string; icon?: string; kids: boolean; hidden: boolean; desc: string;
 }
 const SITE_COLUMNS = ['order', 'id', 'name', 'url', 'mode', 'color', 'icon', 'kids', 'hidden', 'desc'];
@@ -26,10 +26,10 @@ export function cleanSites(list: unknown): Site[] | null {
     if (!s || typeof s !== 'object') continue;
     const name = String(s.name || '').trim().slice(0, 30);
     let id = String(s.id || name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
-    const mode = s.mode === 'youtube' || s.mode === 'frame' ? s.mode : 'tab';
+    const mode = s.mode === 'youtube' || s.mode === 'utube' || s.mode === 'frame' ? s.mode : 'tab';
     const rawUrl = String(s.url || '').trim();
     const url = /^https?:\/\/[^\s]+$/i.test(rawUrl) ? rawUrl.slice(0, 500) : undefined;
-    if (!id || (mode !== 'youtube' && !url)) continue;
+    if (!id || (mode !== 'youtube' && mode !== 'utube' && !url)) continue;
     for (let n = 2; ids.has(id); n++) id = `${id.replace(/-\d+$/, '')}-${n}`;
     ids.add(id);
     const color = String(s.color || '').trim();

@@ -66,7 +66,15 @@ Where the list is stored:
 - With **Upstash for Redis** connected in Vercel (free): one list for every TV.
 - Without it: the admin page offers **Edit on this device only**, which only affects TVs running in that same browser. Use **Export** / **Import** to move a list between devices.
 
-## YouTube
+## YouTube and uTube
+
+There are two YouTube tiles:
+- **YouTube**: YouTube's own TV app with everyone's own Google account (needs the Companion extension; details below).
+- **uTube**: MCM's own YouTube, built in, no extension needed. Search, recommendations, Up next, speed, captions, loop, sleep timer, Fit/Fill, all with the controller and phone. Videos sent from the phone and the search button use uTube while it's on.
+
+Turn uTube **on or off on one TV** from Control center → **uTube**. To hide it on **every TV**, use `/admin` → Sites → uTube → **Hide**. When it's off, search and phone links go to YouTube's TV app, and the uTube row on Home disappears.
+
+### YouTube's TV app
 
 With the Companion extension, the YouTube tile opens **YouTube's own TV app** (youtube.com/tv) in its own tab:
 - **Everyone signs in with their own Google account.** The TV app shows a code; enter it at **yt.be/activate** on a phone. Accounts can be switched from the TV app's profile menu.

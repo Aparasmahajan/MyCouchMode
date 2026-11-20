@@ -27,7 +27,7 @@ const crc32 = (buf) => {
 const files = [];
 (function walk(dir) {
   for (const name of readdirSync(dir).sort()) {
-    if (name.startsWith('.')) continue;
+    if (name.startsWith('.') || name.startsWith('_')) continue; // _metadata is created by the browser
     const p = join(dir, name);
     statSync(p).isDirectory() ? walk(p) : files.push(p);
   }
